@@ -3,20 +3,27 @@ import { createContext, useContext, useState } from 'react';
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
-  const [uploadedData, setUploadedData] = useState(null);
-  // uploadedData shape:
-  // {
-  //   fileName: string,
-  //   columns: string[],
-  //   rows: object[],
-  //   rowCount: number,
-  //   kpis: [{ label, value, trend, trendValue }],
-  //   insights: string[],
-  //   recommendations: [{ title, desc }],
-  //   chartData: [{ name, value }][],
-  //   summary: string,
-  //   analysisRaw: string,
-  // }
+  const [uploadedData, setUploadedDataState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('dsi_uploaded_data');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setUploadedData = (data) => {
+    setUploadedDataState(data);
+    try {
+      if (data) {
+        localStorage.setItem('dsi_uploaded_data', JSON.stringify(data));
+      } else {
+        localStorage.removeItem('dsi_uploaded_data');
+      }
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  };
 
   return (
     <DataContext.Provider value={{ uploadedData, setUploadedData }}>
