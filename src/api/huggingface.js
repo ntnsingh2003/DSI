@@ -5,7 +5,9 @@
  * - Excellent instruction following & structured JSON output
  */
 
-const HF_API_URL = '/api/hf/v1/chat/completions';
+const HF_API_URL = import.meta.env.DEV 
+  ? '/api/hf/v1/chat/completions' 
+  : 'https://router.huggingface.co/v1/chat/completions';
 
 /**
  * Build a structured messages array for Chat Completions
