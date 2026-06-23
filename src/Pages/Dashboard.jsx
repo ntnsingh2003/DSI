@@ -131,7 +131,7 @@ export default function Dashboard() {
         <div className="page-header">
           <div>
             <h1 className="page-title">{uploadedData.fileName}</h1>
-            <p className="page-subtitle">AI-generated dashboard · {uploadedData.model || 'DeepSeek-R1-32B'}</p>
+            <p className="page-subtitle">AI-generated dashboard · {uploadedData.model || 'DeepSeek-R1-8B'}</p>
           </div>
           <div className="page-actions">
             <button className="btn-outline" onClick={handleRefresh} style={{ gap: 6 }}>

@@ -149,7 +149,7 @@ export default function SharedReport() {
             <span className="badge badge-blue"><Globe size={11} /> Public Report</span>
             <span className="badge badge-green"><CheckCircle2 size={11} /> Auto-analyzed</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns · {uploadedData.model || 'DeepSeek-R1-32B'}
+              {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns · {uploadedData.model || 'DeepSeek-R1-8B'}
             </span>
           </div>
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 10, lineHeight: 1.2 }}>

@@ -1,6 +1,6 @@
 /**
  * HuggingFace Inference API integration
- * Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-32B (via OpenAI-compatible completions endpoint)
+ * Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-8B (via OpenAI-compatible completions endpoint)
  * - State-of-the-art reasoning model for mathematical and logic tasks
  * - Free, active, and supported under hf-inference provider
  */
@@ -124,7 +124,7 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-32B',
+        model: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-8B',
         messages: messages,
         temperature: 0.2,
         max_tokens: 1500
@@ -141,7 +141,10 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
     try { errBody = await response.json(); } catch { /* ignore */ }
 
     if (response.status === 401 || response.status === 403) {
-      if (errBody.error && errBody.error.includes('permissions to call Inference Providers')) {
+      const errStr = typeof errBody.error === 'string' 
+        ? errBody.error 
+        : (errBody.error?.message || JSON.stringify(errBody.error || ''));
+      if (errStr.includes('permissions to call Inference Providers')) {
         throw new Error(
           'Your HuggingFace API token is missing the "Make calls to Inference Providers" permission. Please edit your token at huggingface.co/settings/tokens to enable this permission and update your .env file.'
         );
@@ -160,7 +163,15 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
         'Rate limit reached. Please wait a minute and try again.'
       );
     }
-    throw new Error(errBody.error || `HuggingFace API error: ${response.status}`);
+    let errMsg = `HuggingFace API error: ${response.status}`;
+    if (errBody.error) {
+      if (typeof errBody.error === 'string') {
+        errMsg = errBody.error;
+      } else if (typeof errBody.error === 'object') {
+        errMsg = errBody.error.message || errBody.error.error || JSON.stringify(errBody.error);
+      }
+    }
+    throw new Error(errMsg);
   }
 
   onProgress?.('Parsing AI analysis...');
@@ -183,7 +194,7 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
 
   // Validate & fill safe defaults
   return {
-    model: 'DeepSeek-R1-32B',
+    model: 'DeepSeek-R1-8B',
     summary: typeof parsed.summary === 'string' && parsed.summary.trim()
       ? parsed.summary
       : `Analysis of ${rows.length.toLocaleString()} rows.`,
