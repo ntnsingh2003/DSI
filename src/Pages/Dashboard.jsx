@@ -5,19 +5,28 @@ import ExcelUploader from '../components/ExcelUploader';
 import { RevenueAreaChart, CategoryBarChart } from '../components/RevenueChart';
 import { useData } from '../context/DataContext';
 import {
-  DollarSign, ShoppingCart, TrendingUp, Users, BarChart2,
+  DollarSign, ShoppingCart, TrendingUp, TrendingDown, Users, BarChart2,
   Share2, Download, RefreshCw, ExternalLink, FileSpreadsheet, MessageSquare
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const ICON_MAP  = [DollarSign, ShoppingCart, TrendingUp, Users, BarChart2];
-const ICON_BKGS = [
-  'rgba(59,130,246,0.1)',
-  'rgba(99,102,241,0.1)',
-  'rgba(16,185,129,0.1)',
-  'rgba(245,158,11,0.1)',
-  'rgba(239,68,68,0.1)',
-];
+const ICON_MAP = {
+  'Total Sales': DollarSign,
+  'Total Orders': ShoppingCart,
+  'Average Order Value': BarChart2,
+  'Total Products Sold': Users,
+  'Highest Sale': TrendingUp,
+  'Lowest Sale': TrendingDown,
+};
+
+const ICON_BKGS = {
+  'Total Sales': 'rgba(59,130,246,0.1)',
+  'Total Orders': 'rgba(99,102,241,0.1)',
+  'Average Order Value': 'rgba(245,158,11,0.1)',
+  'Total Products Sold': 'rgba(16,185,129,0.1)',
+  'Highest Sale': 'rgba(20,184,166,0.1)',
+  'Lowest Sale': 'rgba(239,68,68,0.1)',
+};
 
 export default function Dashboard() {
   const { uploadedData, setUploadedData } = useData();
@@ -95,8 +104,8 @@ export default function Dashboard() {
     desc: k.desc,
     trend: k.trend || 'up',
     trendValue: k.trendValue || '+0%',
-    icon: ICON_MAP[i] || BarChart2,
-    iconBg: ICON_BKGS[i] || 'rgba(59,130,246,0.1)',
+    icon: ICON_MAP[k.label] || BarChart2,
+    iconBg: ICON_BKGS[k.label] || 'rgba(59,130,246,0.1)',
   }));
 
   return (

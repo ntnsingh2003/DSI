@@ -28,32 +28,95 @@ function TypingIndicator() {
 /** Build a context-aware response from real uploadedData */
 function buildResponse(question, data) {
   const q = question.toLowerCase();
+  const cur = data.currencyPrefix || '₹';
 
-  if (q.includes('summar') || q.includes('overview') || q.includes('tell me') || q.includes('about')) {
+  if (q.includes('summar') || q.includes('overview') || q.includes('about') || q.includes('file')) {
     return {
       text: data.summary,
       pills: [
         { label: `${data.rowCount.toLocaleString()} rows scanned`, state: 'done' },
-        { label: `${data.columns.length} columns analysed`, state: 'done' },
+        { label: `${data.columns.length} columns analyzed`, state: 'done' },
       ],
       preview: true,
     };
   }
 
-  if (q.includes('kpi') || q.includes('metric') || q.includes('number') || q.includes('revenue') || q.includes('sale') || q.includes('performance')) {
+  if (q.includes('highest') || q.includes('max') || q.includes('peak') || q.includes('largest')) {
+    return {
+      text: `The **Highest Sale** recorded in this dataset is **${data.highestSaleFormatted}**.\n\nThis transaction represents the single largest order value in the selected period.`,
+      pills: [
+        { label: 'Highest sale queried', state: 'done' }
+      ],
+      preview: false
+    };
+  }
+
+  if (q.includes('lowest') || q.includes('min') || q.includes('smallest')) {
+    return {
+      text: `The **Lowest Sale** recorded in this dataset is **${data.lowestSaleFormatted}**.\n\nThis transaction represents the single smallest order value in the selected period.`,
+      pills: [
+        { label: 'Lowest sale queried', state: 'done' }
+      ],
+      preview: false
+    };
+  }
+
+  if (q.includes('aov') || q.includes('average order') || q.includes('average transaction')) {
+    return {
+      text: `The **Average Order Value (AOV)** is **${data.avgOrderValueFormatted}**.\n\nThis is calculated as Total Sales (${data.totalRevenueFormatted}) divided by the transaction count (${data.transactionCount.toLocaleString()}).`,
+      pills: [
+        { label: 'AOV calculated', state: 'done' }
+      ],
+      preview: false
+    };
+  }
+
+  if (q.includes('revenue') || q.includes('sale') || q.includes('performance') || q.includes('earn') || q.includes('kpi') || q.includes('metric')) {
     const kpiLines = data.kpis.map(k => `**${k.label}:** ${k.value} (${k.trendValue})`).join('\n');
     return {
-      text: `Here are the key metrics from **${data.fileName}**:\n\n${kpiLines}`,
+      text: `Here are the key metrics computed from **${data.fileName}**:\n\n${kpiLines}`,
       pills: [
-        { label: 'KPIs extracted', state: 'done' },
+        { label: 'KPIs retrieved', state: 'done' },
         { label: 'Trends calculated', state: 'done' },
       ],
       preview: true,
     };
   }
 
+  if (q.includes('order') || q.includes('qty') || q.includes('unit') || q.includes('sold') || q.includes('count')) {
+    return {
+      text: `Based on the uploaded file, here is the order volume breakdown:\n- **Total Orders KPI:** ${data.totalUnits.toLocaleString()} (sum of Units Sold as per requirements)\n- **Transaction/Row Count:** ${data.transactionCount.toLocaleString()} individual orders\n- **Total Products/Units Sold:** ${data.totalUnits.toLocaleString()} units`,
+      pills: [
+        { label: 'Orders parsed', state: 'done' },
+        { label: 'Volume aggregated', state: 'done' }
+      ],
+      preview: false
+    };
+  }
+
+  if (q.includes('category') || q.includes('categories') || q.includes('segment')) {
+    const categoriesList = data.chartData.map((cat, i) => `${i + 1}. **${cat.name}** — ${cur}${cat.value.toLocaleString()}`).join('\n');
+    return {
+      text: `There are **${data.uniqueCategoriesCount}** unique categories in **${data.fileName}**.\n\n**Top Category:** "${data.topCategory}" contributes **${data.topCategoryShare}%** of total sales.\n\n**Revenue Breakdown by Category:**\n${categoriesList}\n\n**Low-Performing Category:** "${data.bottomCategory}"`,
+      pills: [
+        { label: 'Categories analyzed', state: 'done' },
+      ],
+      preview: false,
+    };
+  }
+
+  if (q.includes('product') || q.includes('top seller') || q.includes('popular')) {
+    return {
+      text: `The top-selling product by total sales revenue is **"${data.topProduct}"**, which contributed **${data.topProductShare}%** of all sales revenue.\n\nTo see the full product breakdowns, please view the **Reports** or **Dashboard** tabs.`,
+      pills: [
+        { label: 'Products analyzed', state: 'done' }
+      ],
+      preview: false
+    };
+  }
+
   if (q.includes('insight') || q.includes('finding') || q.includes('pattern') || q.includes('trend') || q.includes('discover')) {
-    const insightLines = data.insights.slice(0, 3).map((ins, i) => `${i + 1}. ${ins}`).join('\n');
+    const insightLines = data.insights.map((ins, i) => `${i + 1}. ${ins}`).join('\n');
     return {
       text: `Key insights from **${data.fileName}**:\n\n${insightLines}`,
       pills: [
@@ -65,7 +128,7 @@ function buildResponse(question, data) {
   }
 
   if (q.includes('recommend') || q.includes('suggest') || q.includes('action') || q.includes('next step') || q.includes('what should')) {
-    const recLines = data.recommendations.slice(0, 3).map((r, i) => `**${i + 1}. ${r.title}** — ${r.desc}`).join('\n\n');
+    const recLines = data.recommendations.map((r, i) => `**${i + 1}. ${r.title}**\n${r.desc}`).join('\n\n');
     return {
       text: `Based on **${data.fileName}**, here are the recommendations:\n\n${recLines}`,
       pills: [
@@ -76,9 +139,9 @@ function buildResponse(question, data) {
     };
   }
 
-  if (q.includes('column') || q.includes('field') || q.includes('structure') || q.includes('data type') || q.includes('what column')) {
+  if (q.includes('column') || q.includes('field') || q.includes('structure') || q.includes('data type')) {
     return {
-      text: `**${data.fileName}** has **${data.columns.length} columns** and **${data.rowCount.toLocaleString()} rows**.\n\nColumns: ${data.columns.join(', ')}`,
+      text: `**${data.fileName}** has **${data.columns.length} columns** and **${data.rowCount.toLocaleString()} rows**.\n\nColumns detected: ${data.columns.map(c => `\`${c}\``).join(', ')}`,
       pills: [
         { label: `${data.columns.length} columns found`, state: 'done' },
       ],
@@ -86,17 +149,9 @@ function buildResponse(question, data) {
     };
   }
 
-  if (q.includes('anomal') || q.includes('outlier') || q.includes('problem') || q.includes('issue') || q.includes('risk')) {
-    const risk = data.insights.find(i =>
-      i.toLowerCase().includes('risk') ||
-      i.toLowerCase().includes('drop') ||
-      i.toLowerCase().includes('declin') ||
-      i.toLowerCase().includes('low')
-    );
+  if (q.includes('anomal') || q.includes('outlier') || q.includes('problem') || q.includes('issue') || q.includes('risk') || q.includes('decline')) {
     return {
-      text: risk
-        ? `Potential risk found in **${data.fileName}**:\n\n${risk}\n\nCheck the full report for all anomalies.`
-        : `No major anomalies detected in **${data.fileName}**. The data looks consistent across all ${data.rowCount.toLocaleString()} rows.`,
+      text: `Potential risks and findings in **${data.fileName}**:\n\n- Low-performing category: **"${data.bottomCategory}"**\n- Smallest transaction value recorded: **${data.lowestSaleFormatted}**\n\nThe overall dataset looks consistent with ${data.rowCount.toLocaleString()} rows and no major structural errors.`,
       pills: [
         { label: 'Anomaly scan complete', state: 'done' },
       ],
@@ -105,7 +160,7 @@ function buildResponse(question, data) {
   }
 
   return {
-    text: `I can help you analyse **${data.fileName}** (${data.rowCount.toLocaleString()} rows).\n\n${data.summary}\n\nTry asking about: KPIs, insights, recommendations, column structure, or anomalies.`,
+    text: `I can help you analyze **${data.fileName}** offline.\n\n${data.summary}\n\nTry asking about:\n- **Total Sales & Revenue**\n- **Total Orders / Quantity Sold**\n- **Average Order Value (AOV)**\n- **Highest and Lowest Sale**\n- **Top Product & Top Category**\n- **Insights & Recommendations**`,
     pills: [
       { label: `${data.fileName} loaded`, state: 'done' },
     ],

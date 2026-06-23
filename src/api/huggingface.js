@@ -1,232 +1,8 @@
 /**
- * HuggingFace Inference API integration
- * Model: deepseek-ai/DeepSeek-R1 (via OpenAI-compatible completions endpoint)
- * - Flagship reasoning model for mathematical and logic tasks
- * - Free, active, and supported under hf-inference provider (routed automatically to fastest active partner)
+ * Client-Side Business Intelligence Analytics Engine
+ * Provides offline deterministic metric calculations, grouping, summaries,
+ * insights, and recommendations in real-time in the browser.
  */
-
-const HF_API_URL = (typeof import.meta.env !== 'undefined' && import.meta.env.DEV)
-  ? '/api/hf/v1/chat/completions' 
-  : 'https://router.huggingface.co/v1/chat/completions';
-
-/**
- * Build a structured messages array for Chat Completions
- */
-function buildMessages(columns, sampleRows, rowCount, computed) {
-  const sample = sampleRows.slice(0, 12);
-  const sampleText = sample
-    .map((row, i) =>
-      `Row ${i + 1}: ${columns.map(c => `${c}=${String(row[c] ?? '').slice(0, 30)}`).join(', ')}`
-    )
-    .join('\n');
-
-  const systemPrompt = `You are a business data analyst. Analyze spreadsheet data and return ONLY a valid JSON object — no explanation, no markdown fences, no extra text before or after the JSON.
-
-CRITICAL MATHEMATICAL RULES — you MUST follow these exactly:
-1. All numeric values in "kpis", "chartData", and "trendData" must be mathematically consistent.
-2. If you include a "Total Revenue" or similar sum KPI, it MUST equal the sum of all values in "chartData" AND approximately equal the sum of all "revenue" values in "trendData".
-3. "Avg Order Value" MUST equal Total Revenue divided by Total Orders (rounded to 2 decimal places).
-4. All trendValue fields MUST include the % sign (e.g., "+12.5%" not "+12.5").
-5. All numeric values in chartData and trendData MUST be plain numbers (no currency symbols, no commas).
-6. When writing the "summary", "insights", or "recommendations", refer to the records/rows as 'orders' or 'transactions' (e.g. 'Total number of orders received...'). Never use technical database terms such as 'rows', 'spreadsheet lines', or 'dataset entries' to describe the order count.`;
-
-  const userPrompt = `Dataset Overview:
-- Columns: ${columns.join(', ')}
-- Total rows: ${rowCount}
-
-CRITICAL: Here are the EXACT calculated mathematical metrics computed from the entire dataset. You MUST write your text summary, insights, and recommendations to match these exact numbers:
-- Total Revenue: ${computed.totalRevenueFormatted}
-- Total Units Sold: ${computed.totalUnits.toLocaleString()}
-- Total Orders: ${computed.totalUnits.toLocaleString()}
-- Average Order Value: ${computed.avgOrderValueFormatted}
-- Category Breakdown (chartData): ${JSON.stringify(computed.chartData)}
-- Trend Data (trendData): ${JSON.stringify(computed.trendData)}
-
-Sample (first ${sample.length} rows):
-${sampleText}
-
-Return this exact JSON structure with real values from the data:
-{
-  "summary": "2-3 sentence executive summary of what this dataset contains and key findings",
-  "kpis": [
-    { "label": "Total Revenue", "value": "${computed.totalRevenueFormatted}", "trend": "up", "trendValue": "+0%" },
-    { "label": "Total Units Sold", "value": "${computed.totalUnits.toLocaleString()}", "trend": "up", "trendValue": "+0%" },
-    { "label": "Avg Order Value", "value": "${computed.avgOrderValueFormatted}", "trend": "up", "trendValue": "+0%" },
-    { "label": "Total Orders", "value": "${computed.totalUnits.toLocaleString()}", "trend": "up", "trendValue": "+0%" }
-  ],
-  "insights": [
-    "Specific insight sentence 1 with numbers",
-    "Specific insight sentence 2 with numbers",
-    "Specific insight sentence 3 with numbers",
-    "Specific insight sentence 4 with numbers",
-    "Specific insight sentence 5 with numbers"
-  ],
-  "recommendations": [
-    { "title": "Action title", "desc": "Specific actionable recommendation" },
-    { "title": "Action title", "desc": "Specific actionable recommendation" },
-    { "title": "Action title", "desc": "Specific actionable recommendation" }
-  ],
-  "chartData": ${JSON.stringify(computed.chartData)},
-  "trendData": ${JSON.stringify(computed.trendData)}
-}
-
-REMINDER: Your JSON must match the exact kpis, chartData, and trendData structures above. Make sure your "summary", "insights", and "recommendations" mention the correct numbers!`;
-
-  return [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: userPrompt }
-  ];
-}
-
-
-/**
- * Extract JSON from LLM output — handles extra text, markdown fences, etc.
- */
-function extractJSON(text) {
-  // Strip markdown fences if present
-  let clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-
-  // Find first { ... } block
-  const start = clean.indexOf('{');
-  const end   = clean.lastIndexOf('}');
-  if (start !== -1 && end !== -1 && end > start) {
-    const candidate = clean.slice(start, end + 1);
-    try {
-      return JSON.parse(candidate);
-    } catch {
-      // Try fixing common JSON issues
-      const fixed = candidate
-        .replace(/,\s*([}\]])/g, '$1')   // trailing commas
-        .replace(/(['"])?([a-zA-Z_][a-zA-Z0-9_]*)(['"])?:/g, '"$2":') // unquoted keys
-        .replace(/:\s*'([^']*)'/g, ': "$1"'); // single-quoted strings
-      return JSON.parse(fixed);
-    }
-  }
-  throw new Error('No valid JSON found in model response');
-}
-
-/**
- * Main export: send Excel data to HuggingFace DeepSeek-R1 and get structured analysis
- */
-export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
-  // 1. Calculate exact deterministic metrics
-  const computed = computeDataMetrics(columns, rows);
-
-  onProgress?.('Sending data to DeepSeek-R1 on HuggingFace...');
-
-  const messages = buildMessages(columns, rows, rows.length, computed);
-
-  let response;
-  try {
-    response = await fetch(HF_API_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'deepseek-ai/DeepSeek-R1',
-        messages: messages,
-        temperature: 0.2,
-        max_tokens: 1500
-      }),
-    });
-  } catch (networkErr) {
-    throw new Error(
-      'Network error — could not reach HuggingFace. Check your internet connection and try again.'
-    );
-  }
-
-  if (!response.ok) {
-    let errBody = {};
-    try { errBody = await response.json(); } catch { /* ignore */ }
-
-    if (response.status === 401 || response.status === 403) {
-      const errStr = typeof errBody.error === 'string' 
-        ? errBody.error 
-        : (errBody.error?.message || JSON.stringify(errBody.error || ''));
-      if (errStr.includes('permissions to call Inference Providers')) {
-        throw new Error(
-          'Your HuggingFace API token is missing the "Make calls to Inference Providers" permission. Please edit your token at huggingface.co/settings/tokens to enable this permission and update your .env file.'
-        );
-      }
-      throw new Error(
-        'Invalid or expired API token. Please generate a new token at huggingface.co/settings/tokens and update your .env file.'
-      );
-    }
-    if (response.status === 503) {
-      throw new Error(
-        'Model is loading on HuggingFace servers (cold start). Please wait 20–30 seconds and click Analyze again.'
-      );
-    }
-    if (response.status === 429) {
-      throw new Error(
-        'Rate limit reached. Please wait a minute and try again.'
-      );
-    }
-    let errMsg = `HuggingFace API error: ${response.status}`;
-    if (errBody.error) {
-      if (typeof errBody.error === 'string') {
-        errMsg = errBody.error;
-      } else if (typeof errBody.error === 'object') {
-        errMsg = errBody.error.message || errBody.error.error || JSON.stringify(errBody.error);
-      }
-    }
-    throw new Error(errMsg);
-  }
-
-  onProgress?.('Parsing AI analysis...');
-
-  const data = await response.json();
-  const rawText = data?.choices?.[0]?.message?.content || '';
-
-  if (!rawText.trim()) {
-    throw new Error('Model returned an empty response. Please try again.');
-  }
-
-  let parsed;
-  try {
-    parsed = extractJSON(rawText);
-  } catch {
-    throw new Error(
-      'Could not parse model response as JSON. The model may have returned unexpected text. Try again.'
-    );
-  }
-
-  // Validate & fill safe defaults
-  return {
-    model: 'DeepSeek-R1',
-    summary: typeof parsed.summary === 'string' && parsed.summary.trim()
-      ? parsed.summary
-      : `Analysis of ${rows.length.toLocaleString()} rows.`,
-
-    // Override math with mathematically perfect calculations
-    kpis: computed.kpis.map((ck, idx) => {
-      return {
-        label: ck.label,
-        value: ck.value,
-        desc: ck.desc,
-        trend: ck.trend,
-        trendValue: ck.trendValue
-      };
-    }),
-
-    insights: Array.isArray(parsed.insights)
-      ? parsed.insights.slice(0, 6).map(String)
-      : [],
-
-    recommendations: Array.isArray(parsed.recommendations)
-      ? parsed.recommendations.slice(0, 4).map(r => ({
-          title: String(r.title || ''),
-          desc:  String(r.desc  || ''),
-        }))
-      : [],
-
-    chartData: computed.chartData,
-    trendData: computed.trendData,
-    analysisRaw: rawText,
-  };
-}
 
 /**
  * Robust Client-Side Data Metric Computations
@@ -245,64 +21,65 @@ export function computeDataMetrics(columns, rows) {
       avgOrderValue: 0,
       totalRevenueFormatted: '0',
       avgOrderValueFormatted: '0',
+      highestSaleFormatted: '0',
+      lowestSaleFormatted: '0',
+      topCategory: 'N/A',
+      topCategoryShare: '0',
+      bottomCategory: 'N/A',
+      topProduct: 'N/A',
+      topProductShare: '0',
+      currencyPrefix: '₹',
+      uniqueCategoriesCount: 0,
+      transactionCount: 0
     };
   }
 
-  // 1. Identify columns with robust semantic check
-  let revenueCol = columns.find(c => {
-    const l = String(c).toLowerCase();
-    return (l.includes('total') && l.includes('sale')) ||
-           (l.includes('total') && l.includes('rev')) ||
-           l === 'revenue' || l === 'sales' || l === 'amount' || l === 'total sales' || l === 'total_sales' || l === 'net_revenue' || l === 'net revenue';
-  });
-  if (!revenueCol) {
-    revenueCol = columns.find(c => {
-      const l = String(c).toLowerCase();
-      return l.includes('revenue') || l.includes('sale') || l.includes('amount') || l.includes('price');
+  // Find columns with robust semantic check
+  const findCol = (keys) => {
+    return columns.find(c => {
+      const l = String(c).toLowerCase().trim();
+      return keys.some(k => l === k || l.includes(k));
     });
-  }
-  if (!revenueCol) revenueCol = columns[0];
+  };
 
-  let qtyCol = columns.find(c => {
-    const l = String(c).toLowerCase();
-    return l.includes('qty') || l.includes('quantity') || l.includes('unit') || l.includes('sold') || l.includes('count');
-  });
-
-  let categoryCol = columns.find(c => {
-    const l = String(c).toLowerCase();
-    return l.includes('category') || l.includes('type') || l.includes('group') || l.includes('class') || l === 'product' || l === 'item';
-  });
-  if (!categoryCol) {
-    categoryCol = columns.find(c => {
-      const l = String(c).toLowerCase();
-      return l.includes('product') || l.includes('item');
-    });
-  }
-  if (!categoryCol) categoryCol = columns[0];
-
-  let dateCol = columns.find(c => {
-    const l = String(c).toLowerCase();
-    return l.includes('date') || l.includes('time') || l.includes('month') || l.includes('year') || l.includes('day') || l.includes('created');
-  });
+  const dateCol = findCol(['date', 'time', 'timestamp', 'created']);
+  const productCol = findCol(['product', 'item', 'name']);
+  const categoryCol = findCol(['category', 'type', 'group', 'class']);
+  
+  // Enforce units / quantity
+  const qtyCol = findCol(['quantity', 'qty', 'unit', 'sold', 'count']);
+  
+  // Enforce price
+  const priceCol = findCol(['price', 'rate', 'cost']);
+  
+  // Enforce pre-calculated revenue/sales
+  const revCol = findCol(['revenue', 'sale', 'amount']);
 
   // Extract currency prefix dynamically
-  let currencyPrefix = '$';
+  let currencyPrefix = '₹'; // Default to INR since user dataset has INR
   const headerWithCurrency = columns.find(c => c.includes('₹') || c.includes('INR') || c.includes('$') || c.includes('€') || c.includes('£'));
   if (headerWithCurrency) {
     if (headerWithCurrency.includes('₹') || headerWithCurrency.includes('INR')) currencyPrefix = '₹';
+    else if (headerWithCurrency.includes('$')) currencyPrefix = '$';
     else if (headerWithCurrency.includes('€')) currencyPrefix = '€';
     else if (headerWithCurrency.includes('£')) currencyPrefix = '£';
   } else {
-    const sampleVal = rows.find(r => r[revenueCol] && typeof r[revenueCol] === 'string' && /[\₹\$\€\£]/g.test(r[revenueCol]));
-    if (sampleVal) {
-      const match = String(sampleVal[revenueCol]).match(/[\₹\$\€\£]/);
-      if (match) currencyPrefix = match[0];
+    // Check first few rows
+    for (const r of rows) {
+      for (const col of columns) {
+        const val = String(r[col] || '');
+        if (val.includes('₹')) { currencyPrefix = '₹'; break; }
+        if (val.includes('$')) { currencyPrefix = '$'; break; }
+        if (val.includes('€')) { currencyPrefix = '€'; break; }
+        if (val.includes('£')) { currencyPrefix = '£'; break; }
+      }
     }
   }
 
   const cleanNumber = (val) => {
     if (val === null || val === undefined || val === '') return 0;
     if (typeof val === 'number') return val;
+    // Replace everything except numbers, dots, and minus signs
     const s = String(val).replace(/[^0-9.-]/g, '');
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
@@ -311,46 +88,34 @@ export function computeDataMetrics(columns, rows) {
   const parseDate = (val) => {
     if (val instanceof Date) return val;
     if (!val) return null;
-    
-    // If it's a number (Excel serial date)
     const num = Number(val);
     if (!isNaN(num) && num > 25569 && num < 100000) {
       return new Date((num - 25569) * 86400 * 1000);
     }
-
     const s = String(val).trim();
-    
-    // Try standard new Date()
     let d = new Date(s);
     if (!isNaN(d.getTime())) return d;
-
-    // Handle DD-MM-YYYY or DD/MM/YYYY
     const parts = s.split(/[-/]/);
     if (parts.length === 3) {
       const p0 = parseInt(parts[0], 10);
       const p1 = parseInt(parts[1], 10);
       const p2 = parseInt(parts[2], 10);
       if (parts[2].length === 4 && !isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
-        // DD-MM-YYYY or MM-DD-YYYY. Let's assume DD-MM-YYYY (standard international format in Excel)
         if (p1 <= 12) {
           d = new Date(p2, p1 - 1, p0);
           if (!isNaN(d.getTime())) return d;
         }
       } else if (parts[0].length === 4 && !isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
-        // YYYY-MM-DD
         d = new Date(p0, p1 - 1, p2);
         if (!isNaN(d.getTime())) return d;
       }
     }
-
-    // Handle month names like "May", "June", "May-26", "Jun-26"
     const monthNamesMap = {
       jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
       apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
       aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9,
       nov: 10, november: 10, dec: 11, december: 11
     };
-    
     const lower = s.toLowerCase();
     for (const [mName, mIdx] of Object.entries(monthNamesMap)) {
       if (lower.includes(mName)) {
@@ -364,46 +129,85 @@ export function computeDataMetrics(columns, rows) {
         return new Date(year, mIdx, 1);
       }
     }
-
     return null;
   };
 
-  // 2. Calculations
+  // Perform transaction mapping
+  const parsedRows = rows.map((r, index) => {
+    const qty = qtyCol ? cleanNumber(r[qtyCol]) : 1;
+    const price = priceCol ? cleanNumber(r[priceCol]) : 0;
+    
+    // Revenue = precalculated column, or qty * price
+    let rev = 0;
+    if (revCol && r[revCol] !== undefined && r[revCol] !== '') {
+      rev = cleanNumber(r[revCol]);
+    } else {
+      rev = qty * price;
+    }
+    
+    const cat = String(categoryCol && r[categoryCol] !== undefined && r[categoryCol] !== '' ? r[categoryCol] : 'Unknown').trim();
+    const prod = String(productCol && r[productCol] !== undefined && r[productCol] !== '' ? r[productCol] : 'Unknown').trim();
+    const dt = dateCol ? parseDate(r[dateCol]) : null;
+
+    return {
+      index,
+      qty,
+      price,
+      revenue: rev,
+      category: cat,
+      product: prod,
+      date: dt,
+    };
+  });
+
+  // Calculate aggregations
   let totalRevenue = 0;
   let totalUnits = 0;
+  let highestSale = 0;
+  let lowestSale = parsedRows.length > 0 ? Infinity : 0;
   const categories = {};
+  const products = {};
   const dates = [];
   const rawDates = [];
 
-  rows.forEach(r => {
-    const rev = cleanNumber(r[revenueCol]);
-    const qty = qtyCol ? cleanNumber(r[qtyCol]) : 1;
-    const cat = String(r[categoryCol] || 'Other').trim();
+  parsedRows.forEach(r => {
+    totalRevenue += r.revenue;
+    totalUnits += r.qty;
+    if (r.revenue > highestSale) highestSale = r.revenue;
+    if (r.revenue < lowestSale) lowestSale = r.revenue;
 
-    totalRevenue += rev;
-    totalUnits += qty;
-    categories[cat] = (categories[cat] || 0) + rev;
+    categories[r.category] = (categories[r.category] || 0) + r.revenue;
+    products[r.product] = (products[r.product] || 0) + r.revenue;
 
-    if (dateCol) {
-      const dt = parseDate(r[dateCol]);
-      if (dt) {
-        dates.push({ date: dt, revenue: rev, qty: qty });
-        rawDates.push(dt);
-      }
+    if (r.date) {
+      dates.push(r);
+      rawDates.push(r.date);
     }
   });
 
-  const totalOrders = rows.length;
+  if (lowestSale === Infinity) lowestSale = 0;
+
+  const totalOrders = rows.length; // number of transactions/rows
   const avgOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders) : 0;
 
-  const totalRevenueFormatted = currencyPrefix + Math.round(totalRevenue).toLocaleString();
-  const avgOrderValueFormatted = currencyPrefix + (avgOrderValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Formatting helper
+  const formatVal = (num, isCurrency = true, decimals = 0) => {
+    if (!isCurrency) return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return currencyPrefix + num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  };
 
-  // 2b. MoM calculations
+  const totalRevenueFormatted = formatVal(totalRevenue, true, 0);
+  const avgOrderValueFormatted = formatVal(avgOrderValue, true, 2);
+  const highestSaleFormatted = formatVal(highestSale, true, 0);
+  const lowestSaleFormatted = formatVal(lowestSale, true, 0);
+
+  // MoM calculations
   let revMoM = null;
   let unitsMoM = null;
+  let aovMoM = null;
   let ordersMoM = null;
-  let avgOrderValueMoM = null;
+  let maxSaleMoM = null;
+  let minSaleMoM = null;
 
   if (rawDates.length > 0) {
     const maxDate = new Date(Math.max(...rawDates.map(d => d.getTime())));
@@ -416,10 +220,14 @@ export function computeDataMetrics(columns, rows) {
     let currRev = 0;
     let currUnits = 0;
     let currOrders = 0;
+    let currMax = 0;
+    let currMin = Infinity;
 
     let prevRev = 0;
     let prevUnits = 0;
     let prevOrders = 0;
+    let prevMax = 0;
+    let prevMin = Infinity;
 
     dates.forEach(d => {
       const m = d.date.getMonth();
@@ -428,12 +236,19 @@ export function computeDataMetrics(columns, rows) {
         currRev += d.revenue;
         currUnits += d.qty;
         currOrders += 1;
+        if (d.revenue > currMax) currMax = d.revenue;
+        if (d.revenue < currMin) currMin = d.revenue;
       } else if (m === prevMonthIndex && y === prevYear) {
         prevRev += d.revenue;
         prevUnits += d.qty;
         prevOrders += 1;
+        if (d.revenue > prevMax) prevMax = d.revenue;
+        if (d.revenue < prevMin) prevMin = d.revenue;
       }
     });
+
+    if (currMin === Infinity) currMin = 0;
+    if (prevMin === Infinity) prevMin = 0;
 
     const calculateGrowth = (curr, prev) => {
       if (prev && prev > 0) {
@@ -443,12 +258,15 @@ export function computeDataMetrics(columns, rows) {
     };
 
     revMoM = calculateGrowth(currRev, prevRev);
-    unitsMoM = calculateGrowth(currUnits, prevUnits);
-    ordersMoM = calculateGrowth(currOrders, prevOrders);
-
+    unitsMoM = calculateGrowth(currUnits, prevUnits); // maps to Total Products Sold
+    ordersMoM = calculateGrowth(currUnits, prevUnits); // total orders matches sum of units sold (as requested)
+    
     const currAvg = currOrders > 0 ? (currRev / currOrders) : 0;
     const prevAvg = prevOrders > 0 ? (prevRev / prevOrders) : 0;
-    avgOrderValueMoM = calculateGrowth(currAvg, prevAvg);
+    aovMoM = calculateGrowth(currAvg, prevAvg);
+
+    maxSaleMoM = calculateGrowth(currMax, prevMax);
+    minSaleMoM = calculateGrowth(currMin, prevMin);
   }
 
   const formatMoM = (momVal) => {
@@ -462,19 +280,19 @@ export function computeDataMetrics(columns, rows) {
     return momVal >= 0 ? 'up' : 'down';
   };
 
-  // 3. Category Breakdown Data
+  // Grouped charts
+  // Category breakdown
   const chartData = Object.entries(categories).map(([name, value]) => ({
     name,
     value: Math.round(value)
   })).sort((a, b) => b.value - a.value).slice(0, 8);
 
-  // 4. Trend Data
+  // Monthly or Daily trend
   let groupBy = 'month';
   if (rawDates.length > 0) {
     const minDate = new Date(Math.min(...rawDates));
     const maxDate = new Date(Math.max(...rawDates));
-    const diffTime = Math.abs(maxDate - minDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = Math.ceil(Math.abs(maxDate - minDate) / (1000 * 60 * 60 * 24));
     if (diffDays <= 40) {
       groupBy = 'day';
     }
@@ -503,9 +321,7 @@ export function computeDataMetrics(columns, rows) {
       const day = String(d.date.getDate()).padStart(2, '0');
       const m = monthNames[d.date.getMonth()];
       const key = `${day} ${m}`;
-      if (!uniqueKeys.includes(key)) {
-        uniqueKeys.push(key);
-      }
+      if (!uniqueKeys.includes(key)) uniqueKeys.push(key);
     });
     trendData = uniqueKeys.map(key => ({
       month: key,
@@ -528,37 +344,64 @@ export function computeDataMetrics(columns, rows) {
     }
   }
 
-  // 5. KPIs
+  // 6 KPIs as requested
   const kpis = [
     { 
-      label: 'Total Revenue', 
+      label: 'Total Sales', 
       value: totalRevenueFormatted, 
       desc: 'Total revenue generated during the selected period.',
       trend: getTrendDirection(revMoM), 
       trendValue: formatMoM(revMoM) 
     },
     { 
-      label: qtyCol ? 'Total Units Sold' : 'Total Records', 
-      value: totalUnits.toLocaleString(), 
-      desc: 'Total number of product units sold.',
-      trend: getTrendDirection(unitsMoM), 
-      trendValue: formatMoM(unitsMoM) 
-    },
-    { 
-      label: 'Avg Order Value', 
-      value: avgOrderValueFormatted, 
-      desc: 'Average monetary value of each order.',
-      trend: getTrendDirection(avgOrderValueMoM), 
-      trendValue: formatMoM(avgOrderValueMoM) 
-    },
-    { 
       label: 'Total Orders', 
-      value: totalUnits.toLocaleString(), 
-      desc: 'Total number of orders received during the selected period.',
+      value: totalUnits.toLocaleString(), // SUM(Units Sold) as requested
+      desc: 'Total orders received (mapped to sum of units sold).',
+      trend: getTrendDirection(ordersMoM), 
+      trendValue: formatMoM(ordersMoM) 
+    },
+    { 
+      label: 'Average Order Value', 
+      value: avgOrderValueFormatted, 
+      desc: 'Average monetary value of each transaction.',
+      trend: getTrendDirection(aovMoM), 
+      trendValue: formatMoM(aovMoM) 
+    },
+    { 
+      label: 'Total Products Sold', 
+      value: totalUnits.toLocaleString(), // SUM(Units Sold)
+      desc: 'Sum of all product quantities sold.',
       trend: getTrendDirection(unitsMoM), 
       trendValue: formatMoM(unitsMoM) 
+    },
+    {
+      label: 'Highest Sale',
+      value: highestSaleFormatted,
+      desc: 'The single largest transaction value recorded.',
+      trend: getTrendDirection(maxSaleMoM),
+      trendValue: formatMoM(maxSaleMoM)
+    },
+    {
+      label: 'Lowest Sale',
+      value: lowestSaleFormatted,
+      desc: 'The single smallest transaction value recorded.',
+      trend: getTrendDirection(minSaleMoM),
+      trendValue: formatMoM(minSaleMoM)
     }
   ];
+
+  // Helper values for generating summary, insights, recommendations
+  const sortedCategories = Object.entries(categories).sort((a,b) => b[1] - a[1]);
+  const topCategory = sortedCategories[0]?.[0] || 'Unknown';
+  const topCategoryVal = sortedCategories[0]?.[1] || 0;
+  const topCategoryShare = totalRevenue > 0 ? ((topCategoryVal / totalRevenue) * 100).toFixed(1) : '0';
+  
+  const bottomCategory = sortedCategories[sortedCategories.length - 1]?.[0] || 'Unknown';
+
+  const sortedProducts = Object.entries(products).sort((a,b) => b[1] - a[1]);
+  const topProduct = sortedProducts[0]?.[0] || 'Unknown';
+  const topProductVal = sortedProducts[0]?.[1] || 0;
+  const topProductShare = totalRevenue > 0 ? ((topProductVal / totalRevenue) * 100).toFixed(1) : '0';
 
   return {
     kpis,
@@ -568,7 +411,74 @@ export function computeDataMetrics(columns, rows) {
     totalOrders,
     totalUnits,
     avgOrderValue,
+    highestSale,
+    lowestSale,
     totalRevenueFormatted,
-    avgOrderValueFormatted
+    avgOrderValueFormatted,
+    highestSaleFormatted,
+    lowestSaleFormatted,
+    topCategory,
+    topCategoryShare,
+    bottomCategory,
+    topProduct,
+    topProductShare,
+    currencyPrefix,
+    uniqueCategoriesCount: sortedCategories.length,
+    transactionCount: totalOrders,
+  };
+}
+
+/**
+ * Main export: analyzes data offline completely in-browser
+ */
+export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
+  onProgress?.('Analyzing data client-side...');
+  const computed = computeDataMetrics(columns, rows);
+
+  onProgress?.('Formulating business recommendations...');
+  
+  const cur = computed.currencyPrefix;
+  const totalRev = computed.totalRevenueFormatted;
+  const avgOrder = computed.avgOrderValueFormatted;
+  const count = computed.transactionCount;
+  
+  const summary = `This business intelligence report summarizes the transaction metrics from ${computed.transactionCount.toLocaleString()} recorded sales rows. Total sales revenue reached ${totalRev} with an average transaction value of ${avgOrder}. Sales activity spans ${computed.uniqueCategoriesCount} categories, with the top-performing category being "${computed.topCategory}" representing ${computed.topCategoryShare}% of total sales.`;
+
+  const insights = [
+    `Total sales revenue reached ${totalRev} across ${computed.totalUnits.toLocaleString()} units and ${count.toLocaleString()} orders, indicating healthy purchase volumes.`,
+    `The "${computed.topCategory}" category led revenue generation, accounting for ${computed.topCategoryShare}% (${cur}${Math.round(computed.chartData[0]?.value || 0).toLocaleString()}) of overall sales.`,
+    `Average transaction value stands at ${avgOrder}, providing a baseline for cross-selling and bundling campaigns.`,
+    `The highest transaction value was ${computed.highestSaleFormatted}, contrasting with the lowest recorded sale of ${computed.lowestSaleFormatted}.`,
+    `The top individual product by total sales revenue is "${computed.topProduct}", which contributed ${computed.topProductShare}% of all sales.`
+  ];
+
+  const recommendations = [
+    {
+      title: `Double-Down on "${computed.topCategory}"`,
+      desc: `Allocate additional marketing budget and prime shelf space to the "${computed.topCategory}" category, which contributes the majority (${computed.topCategoryShare}%) of your revenue.`
+    },
+    {
+      title: `Optimize Transaction Sizes`,
+      desc: `Introduce product bundles, loyalty points, or free shipping thresholds slightly above your average order value of ${avgOrder} to lift overall margins.`
+    },
+    {
+      title: `Diversify Weak Categories`,
+      desc: `Launch targeted promotional discount campaigns for lower-performing segments like "${computed.bottomCategory}" to liquidate slow inventory and broaden customer appeal.`
+    }
+  ];
+
+  // Small delay for smooth loader visualization
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  return {
+    model: 'Local BI Engine',
+    summary,
+    kpis: computed.kpis,
+    insights,
+    recommendations,
+    chartData: computed.chartData,
+    trendData: computed.trendData,
+    analysisRaw: JSON.stringify({ summary, insights, recommendations }, null, 2),
+    ...computed
   };
 }

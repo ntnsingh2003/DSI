@@ -3,21 +3,30 @@ import { RevenueAreaChart, CategoryBarChart, PIE_COLORS } from '../components/Re
 import { useData } from '../context/DataContext';
 import { Link, useParams } from 'react-router-dom';
 import {
-  Shield, Globe, Lock, Share2, TrendingUp,
+  Shield, Globe, Lock, Share2, TrendingUp, TrendingDown,
   Download, ChevronRight, CheckCircle2, Zap,
   FileSpreadsheet, AlertCircle,
   DollarSign, ShoppingCart, Users, BarChart2
 } from 'lucide-react';
 import KPICard from '../components/KPICard';
 
-const ICON_MAP  = [DollarSign, ShoppingCart, TrendingUp, Users, BarChart2];
-const ICON_BKGS = [
-  'rgba(59,130,246,0.1)',
-  'rgba(99,102,241,0.1)',
-  'rgba(16,185,129,0.1)',
-  'rgba(245,158,11,0.1)',
-  'rgba(239,68,68,0.1)',
-];
+const ICON_MAP = {
+  'Total Sales': DollarSign,
+  'Total Orders': ShoppingCart,
+  'Average Order Value': BarChart2,
+  'Total Products Sold': Users,
+  'Highest Sale': TrendingUp,
+  'Lowest Sale': TrendingDown,
+};
+
+const ICON_BKGS = {
+  'Total Sales': 'rgba(59,130,246,0.1)',
+  'Total Orders': 'rgba(99,102,241,0.1)',
+  'Average Order Value': 'rgba(245,158,11,0.1)',
+  'Total Products Sold': 'rgba(16,185,129,0.1)',
+  'Highest Sale': 'rgba(20,184,166,0.1)',
+  'Lowest Sale': 'rgba(239,68,68,0.1)',
+};
 
 function NoReport() {
   return (
@@ -181,8 +190,8 @@ export default function SharedReport() {
               {uploadedData.kpis.map((k, i) => {
                 const kpi = {
                   ...k,
-                  icon: ICON_MAP[i] || BarChart2,
-                  iconBg: ICON_BKGS[i] || 'rgba(59,130,246,0.1)',
+                  icon: ICON_MAP[k.label] || BarChart2,
+                  iconBg: ICON_BKGS[k.label] || 'rgba(59,130,246,0.1)',
                 };
                 return <KPICard key={kpi.label} {...kpi} index={i} />;
               })}
