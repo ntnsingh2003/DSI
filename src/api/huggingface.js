@@ -37,7 +37,7 @@ CRITICAL MATHEMATICAL RULES — you MUST follow these exactly:
 CRITICAL: Here are the EXACT calculated mathematical metrics computed from the entire dataset. You MUST write your text summary, insights, and recommendations to match these exact numbers:
 - Total Revenue: ${computed.totalRevenueFormatted}
 - Total Units Sold: ${computed.totalUnits.toLocaleString()}
-- Total Orders: ${computed.totalOrders.toLocaleString()}
+- Total Orders: ${computed.totalUnits.toLocaleString()}
 - Average Order Value: ${computed.avgOrderValueFormatted}
 - Category Breakdown (chartData): ${JSON.stringify(computed.chartData)}
 - Trend Data (trendData): ${JSON.stringify(computed.trendData)}
@@ -52,7 +52,7 @@ Return this exact JSON structure with real values from the data:
     { "label": "Total Revenue", "value": "${computed.totalRevenueFormatted}", "trend": "up", "trendValue": "+0%" },
     { "label": "Total Units Sold", "value": "${computed.totalUnits.toLocaleString()}", "trend": "up", "trendValue": "+0%" },
     { "label": "Avg Order Value", "value": "${computed.avgOrderValueFormatted}", "trend": "up", "trendValue": "+0%" },
-    { "label": "Total Orders", "value": "${computed.totalOrders.toLocaleString()}", "trend": "up", "trendValue": "+0%" }
+    { "label": "Total Orders", "value": "${computed.totalUnits.toLocaleString()}", "trend": "up", "trendValue": "+0%" }
   ],
   "insights": [
     "Specific insight sentence 1 with numbers",
@@ -311,12 +311,61 @@ export function computeDataMetrics(columns, rows) {
   const parseDate = (val) => {
     if (val instanceof Date) return val;
     if (!val) return null;
+    
+    // If it's a number (Excel serial date)
     const num = Number(val);
     if (!isNaN(num) && num > 25569 && num < 100000) {
       return new Date((num - 25569) * 86400 * 1000);
     }
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
+
+    const s = String(val).trim();
+    
+    // Try standard new Date()
+    let d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+
+    // Handle DD-MM-YYYY or DD/MM/YYYY
+    const parts = s.split(/[-/]/);
+    if (parts.length === 3) {
+      const p0 = parseInt(parts[0], 10);
+      const p1 = parseInt(parts[1], 10);
+      const p2 = parseInt(parts[2], 10);
+      if (parts[2].length === 4 && !isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+        // DD-MM-YYYY or MM-DD-YYYY. Let's assume DD-MM-YYYY (standard international format in Excel)
+        if (p1 <= 12) {
+          d = new Date(p2, p1 - 1, p0);
+          if (!isNaN(d.getTime())) return d;
+        }
+      } else if (parts[0].length === 4 && !isNaN(p0) && !isNaN(p1) && !isNaN(p2)) {
+        // YYYY-MM-DD
+        d = new Date(p0, p1 - 1, p2);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+
+    // Handle month names like "May", "June", "May-26", "Jun-26"
+    const monthNamesMap = {
+      jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+      apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+      aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9,
+      nov: 10, november: 10, dec: 11, december: 11
+    };
+    
+    const lower = s.toLowerCase();
+    for (const [mName, mIdx] of Object.entries(monthNamesMap)) {
+      if (lower.includes(mName)) {
+        const yearMatch = lower.match(/\b(20)?\d{2}\b/);
+        let year = new Date().getFullYear();
+        if (yearMatch) {
+          let yVal = parseInt(yearMatch[0], 10);
+          if (yVal < 100) yVal += 2000;
+          year = yVal;
+        }
+        return new Date(year, mIdx, 1);
+      }
+    }
+
+    return null;
   };
 
   // 2. Calculations
@@ -405,7 +454,7 @@ export function computeDataMetrics(columns, rows) {
   const formatMoM = (momVal) => {
     if (momVal === null) return 'N/A';
     const sign = momVal >= 0 ? '+' : '';
-    return `${sign}${momVal.toFixed(1)}%`;
+    return `${sign}${momVal.toFixed(2)}%`;
   };
 
   const getTrendDirection = (momVal) => {
@@ -504,10 +553,10 @@ export function computeDataMetrics(columns, rows) {
     },
     { 
       label: 'Total Orders', 
-      value: totalOrders.toLocaleString(), 
+      value: totalUnits.toLocaleString(), 
       desc: 'Total number of orders received during the selected period.',
-      trend: getTrendDirection(ordersMoM), 
-      trendValue: formatMoM(ordersMoM) 
+      trend: getTrendDirection(unitsMoM), 
+      trendValue: formatMoM(unitsMoM) 
     }
   ];
 

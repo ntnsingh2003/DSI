@@ -158,7 +158,13 @@ export default function ExcelUploader({ onAnalysisComplete }) {
                   { 'Date': '2026-06-03', 'Product Name': 'Chair C', 'Category': 'Furniture', 'Units Sold': 10, 'Price (INR)': 1500, 'Total Sales': 15000, 'Region': 'Jaipur', 'Salesperson': 'Amit' },
                   { 'Date': '2026-06-04', 'Product Name': 'Table D', 'Category': 'Furniture', 'Units Sold': 3, 'Price (INR)': 5000, 'Total Sales': 15000, 'Region': 'Mumbai', 'Salesperson': 'Suresh' },
                   { 'Date': '2026-06-05', 'Product Name': 'Laptop A', 'Category': 'Electronics', 'Units Sold': 1, 'Price (INR)': 50000, 'Total Sales': 50000, 'Region': 'Delhi', 'Salesperson': 'Rahul' },
-                  { 'Date': '2026-06-06', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 3, 'Price (INR)': 20000, 'Total Sales': 60000, 'Region': 'Jaipur', 'Salesperson': 'Neha' }
+                  { 'Date': '2026-06-06', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 3, 'Price (INR)': 20000, 'Total Sales': 60000, 'Region': 'Jaipur', 'Salesperson': 'Neha' },
+                  { 'Date': '2026-05-01', 'Product Name': 'Laptop A', 'Category': 'Electronics', 'Units Sold': 2, 'Price (INR)': 50000, 'Total Sales': 100000, 'Region': 'Jaipur', 'Salesperson': 'Rahul' },
+                  { 'Date': '2026-05-02', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 5, 'Price (INR)': 20000, 'Total Sales': 100000, 'Region': 'Delhi', 'Salesperson': 'Neha' },
+                  { 'Date': '2026-05-03', 'Product Name': 'Chair C', 'Category': 'Furniture', 'Units Sold': 10, 'Price (INR)': 1500, 'Total Sales': 15000, 'Region': 'Jaipur', 'Salesperson': 'Amit' },
+                  { 'Date': '2026-05-04', 'Product Name': 'Table D', 'Category': 'Furniture', 'Units Sold': 3, 'Price (INR)': 5000, 'Total Sales': 15000, 'Region': 'Mumbai', 'Salesperson': 'Suresh' },
+                  { 'Date': '2026-05-05', 'Product Name': 'Laptop A', 'Category': 'Electronics', 'Units Sold': 1, 'Price (INR)': 5000, 'Total Sales': 5000, 'Region': 'Delhi', 'Salesperson': 'Rahul' },
+                  { 'Date': '2026-05-06', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 3, 'Price (INR)': 20000, 'Total Sales': 5000, 'Region': 'Jaipur', 'Salesperson': 'Neha' }
                 ];
                 setParsed({
                   columns: ['Date', 'Product Name', 'Category', 'Units Sold', 'Price (INR)', 'Total Sales', 'Region', 'Salesperson'],
