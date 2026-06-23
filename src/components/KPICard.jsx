@@ -1,7 +1,10 @@
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
-export default function KPICard({ label, value, trend, trendValue, icon: Icon, iconBg, index = 0 }) {
+export default function KPICard({ label, value, trend, trendValue, desc, icon: Icon, iconBg, index = 0 }) {
   const isUp = trend === 'up';
+  const isDown = trend === 'down';
+  const isNA = trendValue === 'N/A' || !trendValue;
+
   return (
     <div
       className="kpi-card animate-fadeInUp"
@@ -12,14 +15,28 @@ export default function KPICard({ label, value, trend, trendValue, icon: Icon, i
       </div>
       <div className="kpi-label">{label}</div>
       <div className="kpi-value">{value}</div>
+      {desc && <div className="kpi-desc">{desc}</div>}
       <div className="kpi-trend">
-        {isUp
-          ? <TrendingUp size={14} color="var(--success)" />
-          : <TrendingDown size={14} color="var(--danger)" />
-        }
-        <span className={isUp ? 'tag-up' : 'tag-down'}>{trendValue}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs last month</span>
+        {isNA ? (
+          <>
+            <span className="tag-neutral">N/A</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No previous month data available</span>
+          </>
+        ) : (
+          <>
+            {isUp ? (
+              <TrendingUp size={14} color="var(--success)" />
+            ) : isDown ? (
+              <TrendingDown size={14} color="var(--danger)" />
+            ) : (
+              <Minus size={14} color="var(--text-muted)" />
+            )}
+            <span className={isUp ? 'tag-up' : isDown ? 'tag-down' : 'tag-neutral'}>{trendValue}</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>vs last month</span>
+          </>
+        )}
       </div>
     </div>
   );
 }
+

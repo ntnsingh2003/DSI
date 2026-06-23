@@ -5,8 +5,19 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Shield, Globe, Lock, Share2, TrendingUp,
   Download, ChevronRight, CheckCircle2, Zap,
-  FileSpreadsheet, AlertCircle
+  FileSpreadsheet, AlertCircle,
+  DollarSign, ShoppingCart, Users, BarChart2
 } from 'lucide-react';
+import KPICard from '../components/KPICard';
+
+const ICON_MAP  = [DollarSign, ShoppingCart, TrendingUp, Users, BarChart2];
+const ICON_BKGS = [
+  'rgba(59,130,246,0.1)',
+  'rgba(99,102,241,0.1)',
+  'rgba(16,185,129,0.1)',
+  'rgba(245,158,11,0.1)',
+  'rgba(239,68,68,0.1)',
+];
 
 function NoReport() {
   return (
@@ -167,19 +178,14 @@ export default function SharedReport() {
           {/* KPI Row */}
           {uploadedData.kpis?.length > 0 && (
             <div className="kpi-grid" style={{ marginBottom: 28 }}>
-              {uploadedData.kpis.map((k, i) => (
-                <div key={k.label} className="kpi-card animate-fadeInUp" style={{ animationDelay: `${i * 0.08}s` }}>
-                  <div className="kpi-icon" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.15)', marginBottom: 14 }}>
-                    <TrendingUp size={18} color="var(--blue-400)" />
-                  </div>
-                  <div className="kpi-label">{k.label}</div>
-                  <div className="kpi-value">{k.value}</div>
-                  <div className="kpi-trend">
-                    <TrendingUp size={12} color={k.trend === 'up' ? 'var(--success)' : 'var(--danger)'} />
-                    <span style={{ color: k.trend === 'up' ? 'var(--success)' : 'var(--danger)', fontSize: 13, fontWeight: 600 }}>{k.trendValue}</span>
-                  </div>
-                </div>
-              ))}
+              {uploadedData.kpis.map((k, i) => {
+                const kpi = {
+                  ...k,
+                  icon: ICON_MAP[i] || BarChart2,
+                  iconBg: ICON_BKGS[i] || 'rgba(59,130,246,0.1)',
+                };
+                return <KPICard key={kpi.label} {...kpi} index={i} />;
+              })}
             </div>
           )}
 

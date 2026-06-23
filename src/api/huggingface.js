@@ -27,7 +27,8 @@ CRITICAL MATHEMATICAL RULES — you MUST follow these exactly:
 2. If you include a "Total Revenue" or similar sum KPI, it MUST equal the sum of all values in "chartData" AND approximately equal the sum of all "revenue" values in "trendData".
 3. "Avg Order Value" MUST equal Total Revenue divided by Total Orders (rounded to 2 decimal places).
 4. All trendValue fields MUST include the % sign (e.g., "+12.5%" not "+12.5").
-5. All numeric values in chartData and trendData MUST be plain numbers (no currency symbols, no commas).`;
+5. All numeric values in chartData and trendData MUST be plain numbers (no currency symbols, no commas).
+6. When writing the "summary", "insights", or "recommendations", refer to the records/rows as 'orders' or 'transactions' (e.g. 'Total number of orders received...'). Never use technical database terms such as 'rows', 'spreadsheet lines', or 'dataset entries' to describe the order count.`;
 
   const userPrompt = `Dataset Overview:
 - Columns: ${columns.join(', ')}
@@ -201,12 +202,12 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
 
     // Override math with mathematically perfect calculations
     kpis: computed.kpis.map((ck, idx) => {
-      const ak = parsed.kpis?.[idx];
       return {
         label: ck.label,
         value: ck.value,
-        trend: ak?.trend === 'down' ? 'down' : 'up',
-        trendValue: ak?.trendValue && ak.trendValue.endsWith('%') ? ak.trendValue : ck.trendValue
+        desc: ck.desc,
+        trend: ck.trend,
+        trendValue: ck.trendValue
       };
     }),
 
@@ -337,7 +338,7 @@ export function computeDataMetrics(columns, rows) {
     if (dateCol) {
       const dt = parseDate(r[dateCol]);
       if (dt) {
-        dates.push({ date: dt, revenue: rev });
+        dates.push({ date: dt, revenue: rev, qty: qty });
         rawDates.push(dt);
       }
     }
@@ -348,6 +349,69 @@ export function computeDataMetrics(columns, rows) {
 
   const totalRevenueFormatted = currencyPrefix + Math.round(totalRevenue).toLocaleString();
   const avgOrderValueFormatted = currencyPrefix + (avgOrderValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // 2b. MoM calculations
+  let revMoM = null;
+  let unitsMoM = null;
+  let ordersMoM = null;
+  let avgOrderValueMoM = null;
+
+  if (rawDates.length > 0) {
+    const maxDate = new Date(Math.max(...rawDates.map(d => d.getTime())));
+    const currentMonthIndex = maxDate.getMonth();
+    const currentYear = maxDate.getFullYear();
+
+    const prevMonthIndex = currentMonthIndex === 0 ? 11 : currentMonthIndex - 1;
+    const prevYear = currentMonthIndex === 0 ? currentYear - 1 : currentYear;
+
+    let currRev = 0;
+    let currUnits = 0;
+    let currOrders = 0;
+
+    let prevRev = 0;
+    let prevUnits = 0;
+    let prevOrders = 0;
+
+    dates.forEach(d => {
+      const m = d.date.getMonth();
+      const y = d.date.getFullYear();
+      if (m === currentMonthIndex && y === currentYear) {
+        currRev += d.revenue;
+        currUnits += d.qty;
+        currOrders += 1;
+      } else if (m === prevMonthIndex && y === prevYear) {
+        prevRev += d.revenue;
+        prevUnits += d.qty;
+        prevOrders += 1;
+      }
+    });
+
+    const calculateGrowth = (curr, prev) => {
+      if (prev && prev > 0) {
+        return ((curr - prev) / prev) * 100;
+      }
+      return null;
+    };
+
+    revMoM = calculateGrowth(currRev, prevRev);
+    unitsMoM = calculateGrowth(currUnits, prevUnits);
+    ordersMoM = calculateGrowth(currOrders, prevOrders);
+
+    const currAvg = currOrders > 0 ? (currRev / currOrders) : 0;
+    const prevAvg = prevOrders > 0 ? (prevRev / prevOrders) : 0;
+    avgOrderValueMoM = calculateGrowth(currAvg, prevAvg);
+  }
+
+  const formatMoM = (momVal) => {
+    if (momVal === null) return 'N/A';
+    const sign = momVal >= 0 ? '+' : '';
+    return `${sign}${momVal.toFixed(1)}%`;
+  };
+
+  const getTrendDirection = (momVal) => {
+    if (momVal === null) return 'neutral';
+    return momVal >= 0 ? 'up' : 'down';
+  };
 
   // 3. Category Breakdown Data
   const chartData = Object.entries(categories).map(([name, value]) => ({
@@ -417,10 +481,34 @@ export function computeDataMetrics(columns, rows) {
 
   // 5. KPIs
   const kpis = [
-    { label: 'Total Revenue', value: totalRevenueFormatted, trend: 'up', trendValue: '+0%' },
-    { label: qtyCol ? 'Total Units Sold' : 'Total Records', value: totalUnits.toLocaleString(), trend: 'up', trendValue: '+0%' },
-    { label: 'Avg Order Value', value: avgOrderValueFormatted, trend: 'up', trendValue: '+0%' },
-    { label: 'Total Orders', value: totalOrders.toLocaleString(), trend: 'up', trendValue: '+0%' }
+    { 
+      label: 'Total Revenue', 
+      value: totalRevenueFormatted, 
+      desc: 'Total revenue generated during the selected period.',
+      trend: getTrendDirection(revMoM), 
+      trendValue: formatMoM(revMoM) 
+    },
+    { 
+      label: qtyCol ? 'Total Units Sold' : 'Total Records', 
+      value: totalUnits.toLocaleString(), 
+      desc: 'Total number of product units sold.',
+      trend: getTrendDirection(unitsMoM), 
+      trendValue: formatMoM(unitsMoM) 
+    },
+    { 
+      label: 'Avg Order Value', 
+      value: avgOrderValueFormatted, 
+      desc: 'Average monetary value of each order.',
+      trend: getTrendDirection(avgOrderValueMoM), 
+      trendValue: formatMoM(avgOrderValueMoM) 
+    },
+    { 
+      label: 'Total Orders', 
+      value: totalOrders.toLocaleString(), 
+      desc: 'Total number of orders received during the selected period.',
+      trend: getTrendDirection(ordersMoM), 
+      trendValue: formatMoM(ordersMoM) 
+    }
   ];
 
   return {

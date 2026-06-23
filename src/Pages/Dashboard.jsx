@@ -92,6 +92,7 @@ export default function Dashboard() {
   const kpis = uploadedData.kpis.map((k, i) => ({
     label: k.label,
     value: k.value,
+    desc: k.desc,
     trend: k.trend || 'up',
     trendValue: k.trendValue || '+0%',
     icon: ICON_MAP[i] || BarChart2,
