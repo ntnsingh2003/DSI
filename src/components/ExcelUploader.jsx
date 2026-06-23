@@ -119,32 +119,59 @@ export default function ExcelUploader({ onAnalysisComplete }) {
     <div className="excel-uploader">
       {/* Drop zone */}
       {!parsed ? (
-        <div
-          className={`upload-zone ${dragging ? 'dragging' : ''}`}
-          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => inputRef.current?.click()}
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            style={{ display: 'none' }}
-            onChange={handleFileInput}
-          />
-          {status === 'parsing' ? (
-            <Loader2 size={32} className="upload-spinner" color="var(--blue-400)" />
-          ) : (
-            <Upload size={32} color={dragging ? 'var(--blue-400)' : 'var(--text-muted)'} />
+        <>
+          <div
+            className={`upload-zone ${dragging ? 'dragging' : ''}`}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            onClick={() => inputRef.current?.click()}
+          >
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              style={{ display: 'none' }}
+              onChange={handleFileInput}
+            />
+            {status === 'parsing' ? (
+              <Loader2 size={32} className="upload-spinner" color="var(--blue-400)" />
+            ) : (
+              <Upload size={32} color={dragging ? 'var(--blue-400)' : 'var(--text-muted)'} />
+            )}
+            <div className="upload-zone-title">
+              {dragging ? 'Drop your file here' : 'Upload Excel or CSV File'}
+            </div>
+            <div className="upload-zone-sub">
+              Drag & drop or click to browse · .xlsx, .xls, .csv supported
+            </div>
+          </div>
+          {import.meta.env.DEV && (
+            <button
+              className="btn-outline"
+              id="btn-load-test-data"
+              onClick={(e) => {
+                e.stopPropagation();
+                const mockRows = [
+                  { 'Date': '2026-06-01', 'Product Name': 'Laptop A', 'Category': 'Electronics', 'Units Sold': 2, 'Price (INR)': 50000, 'Total Sales': 100000, 'Region': 'Jaipur', 'Salesperson': 'Rahul' },
+                  { 'Date': '2026-06-02', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 5, 'Price (INR)': 20000, 'Total Sales': 100000, 'Region': 'Delhi', 'Salesperson': 'Neha' },
+                  { 'Date': '2026-06-03', 'Product Name': 'Chair C', 'Category': 'Furniture', 'Units Sold': 10, 'Price (INR)': 1500, 'Total Sales': 15000, 'Region': 'Jaipur', 'Salesperson': 'Amit' },
+                  { 'Date': '2026-06-04', 'Product Name': 'Table D', 'Category': 'Furniture', 'Units Sold': 3, 'Price (INR)': 5000, 'Total Sales': 15000, 'Region': 'Mumbai', 'Salesperson': 'Suresh' },
+                  { 'Date': '2026-06-05', 'Product Name': 'Laptop A', 'Category': 'Electronics', 'Units Sold': 1, 'Price (INR)': 50000, 'Total Sales': 50000, 'Region': 'Delhi', 'Salesperson': 'Rahul' },
+                  { 'Date': '2026-06-06', 'Product Name': 'Phone B', 'Category': 'Electronics', 'Units Sold': 3, 'Price (INR)': 20000, 'Total Sales': 60000, 'Region': 'Jaipur', 'Salesperson': 'Neha' }
+                ];
+                setParsed({
+                  columns: ['Date', 'Product Name', 'Category', 'Units Sold', 'Price (INR)', 'Total Sales', 'Region', 'Salesperson'],
+                  rows: mockRows
+                });
+                setFile({ name: 'dev_test_data.csv' });
+              }}
+              style={{ width: '100%', marginTop: 12, justifyContent: 'center', cursor: 'pointer', background: 'rgba(59, 130, 246, 0.1)', borderColor: 'var(--blue-400)' }}
+            >
+              Load Dev Test CSV
+            </button>
           )}
-          <div className="upload-zone-title">
-            {dragging ? 'Drop your file here' : 'Upload Excel or CSV File'}
-          </div>
-          <div className="upload-zone-sub">
-            Drag & drop or click to browse · .xlsx, .xls, .csv supported
-          </div>
-        </div>
+        </>
       ) : (
         /* File loaded state */
         <div className="upload-file-loaded">

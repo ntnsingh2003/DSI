@@ -1,8 +1,8 @@
 /**
  * HuggingFace Inference API integration
- * Model: deepseek-ai/DeepSeek-R1-Distill-Qwen-8B (via OpenAI-compatible completions endpoint)
- * - State-of-the-art reasoning model for mathematical and logic tasks
- * - Free, active, and supported under hf-inference provider
+ * Model: deepseek-ai/DeepSeek-R1 (via OpenAI-compatible completions endpoint)
+ * - Flagship reasoning model for mathematical and logic tasks
+ * - Free, active, and supported under hf-inference provider (routed automatically to fastest active partner)
  */
 
 const HF_API_URL = (typeof import.meta.env !== 'undefined' && import.meta.env.DEV)
@@ -124,7 +124,7 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'deepseek-ai/DeepSeek-R1-Distill-Qwen-8B',
+        model: 'deepseek-ai/DeepSeek-R1',
         messages: messages,
         temperature: 0.2,
         max_tokens: 1500
@@ -194,7 +194,7 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
 
   // Validate & fill safe defaults
   return {
-    model: 'DeepSeek-R1-8B',
+    model: 'DeepSeek-R1',
     summary: typeof parsed.summary === 'string' && parsed.summary.trim()
       ? parsed.summary
       : `Analysis of ${rows.length.toLocaleString()} rows.`,
