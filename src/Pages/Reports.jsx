@@ -123,7 +123,7 @@ export default function Reports() {
             </p>
           </div>
           <div className="page-actions">
-            <Link to="/report/abc123">
+            <Link to="/report/shared">
               <button className="btn-outline" style={{ gap: 6, fontSize: 13 }}>
                 <ExternalLink size={13} /> Share Report
               </button>
@@ -138,7 +138,7 @@ export default function Reports() {
         <div className="report-hero animate-fadeInUp">
           <div className="report-meta">
             <span className="badge badge-blue"><FileText size={11} /> AI Generated</span>
-            <span className="badge badge-green"><CheckCircle2 size={11} /> Verified</span>
+            <span className="badge badge-green"><CheckCircle2 size={11} /> Auto-analyzed</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               File: {uploadedData.fileName} · {uploadedData.rowCount.toLocaleString()} rows · Qwen-7B
             </span>
@@ -247,7 +247,7 @@ export default function Reports() {
 
         {/* Footer Actions */}
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 8, paddingBottom: 24 }}>
-          <Link to="/report/abc123">
+          <Link to="/report/shared">
             <button className="btn-outline" style={{ gap: 6 }}>
               <Share2 size={14} /> Share as Live Link
             </button>

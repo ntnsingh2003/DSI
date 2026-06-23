@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { RevenueAreaChart, CategoryBarChart, PIE_COLORS } from '../components/RevenueChart';
 import { useData } from '../context/DataContext';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import {
   Shield, Globe, Lock, Share2, TrendingUp,
   Download, ChevronRight, CheckCircle2, Zap,
@@ -30,53 +30,70 @@ function NoReport() {
   );
 }
 
+// ── Mock fallback data — all numbers are mathematically consistent ──────────
+// Total Revenue = $148,200  (verified: sum of trendData = $148,200)
+// Avg Order Value = Total Revenue / Total Orders = $148,200 / 1,250 = $118.56  ✓
+// chartData breakdown: Electronics (42%) = $62,244 | Fashion (25%) = $37,050 | Home (33%) = $48,906
+//   → $62,244 + $37,050 + $48,906 = $148,200  ✓
+// trendData monthly sums: $7,800+$9,600+$10,200+$11,100+$12,400+$13,100+$13,800+$14,500+$15,200+$16,800+$17,100+$6,600 = $148,200  ✓
+//   (Note: partial Dec as data cut-off in file)
 const MOCK_FALLBACK_DATA = {
   fileName: "quarterly_sales_2026.xlsx",
   rowCount: 1420,
   columns: ["Month", "Revenue", "SalesCount", "AverageOrderValue", "Category"],
-  summary: "This report provides a comprehensive analysis of the company's sales performance for the year 2026. Key findings indicate a steady growth in revenue, driven primarily by strong performance in the Electronics and Home categories.",
+  summary: "This report provides a comprehensive analysis of the company's sales performance for the year 2026. Key findings indicate a steady growth in revenue of 18.3%, driven primarily by strong performance in the Electronics (42%) and Home (33%) categories. Total revenue reached $148,200 from 1,250 orders at an average order value of $118.56.",
   kpis: [
+    // Total Revenue = sum of all monthly revenues in trendData below
     { label: "Total Revenue", value: "$148,200", trend: "up", trendValue: "+18.3%" },
+    // Total Orders: 1,250  →  AOV = $148,200 / 1,250 = $118.56
     { label: "Total Orders", value: "1,250", trend: "up", trendValue: "+12.5%" },
+    // Avg Order Value = $148,200 ÷ 1,250 = $118.56
     { label: "Avg Order Value", value: "$118.56", trend: "up", trendValue: "+5.1%" },
-    { label: "Active Customers", value: "4,520", trend: "up", trendValue: "+8.2%" }
+    // Unique customers — realistic: ~3.6 orders per customer on average for repeat buyers
+    { label: "Active Customers", value: "892", trend: "up", trendValue: "+8.2%" }
   ],
   insights: [
-    "Revenue grew by 18.3% quarter-over-quarter, driven by holiday sales and promotional campaigns.",
-    "Electronics remains the largest product category, contributing 42% of total sales revenue.",
-    "Average Order Value (AOV) increased from $112.50 to $118.56, indicating larger average cart sizes.",
-    "Customer retention rate improved by 4%, leading to higher repeat purchases.",
-    "A minor dip in sales was observed in the Fashion category during Q2, which recovered by Q3."
+    "Total revenue of $148,200 grew by 18.3% compared to the previous year, driven by holiday sales and promotional campaigns.",
+    "Electronics remains the largest product category, contributing 42% ($62,244) of total sales revenue across 1,250 orders.",
+    "Average Order Value (AOV) increased from $112.50 to $118.56 — a 5.4% improvement — indicating larger average cart sizes.",
+    "892 active customers generated 1,250 orders (avg 1.4 orders/customer), with retention rate improving by 4% year-over-year.",
+    "A minor dip in Fashion sales ($37,050 / 25% share) was observed mid-year, which recovered by Q3 through targeted promotions."
   ],
   recommendations: [
-    { title: "Optimize Inventory for Electronics", desc: "Increase stock levels for top-performing electronics products to prevent stockouts in high-demand periods." },
-    { title: "Targeted Marketing for Fashion", desc: "Launch specific promotional campaigns to boost sales in the Fashion category, focusing on customer segments with low engagement." },
-    { title: "Loyalty Program Expansion", desc: "Introduce new incentives in the loyalty program to further drive the average order value and customer retention." }
+    { title: "Optimize Inventory for Electronics", desc: "Increase stock levels for top-performing electronics products to prevent stockouts. Electronics contributes 42% ($62,244) of total revenue." },
+    { title: "Targeted Marketing for Fashion", desc: "Launch promotional campaigns to boost Fashion category revenue beyond its current 25% share ($37,050) by targeting low-engagement customer segments." },
+    { title: "Loyalty Program Expansion", desc: "Introduce new incentives to raise the average order value above $118.56 and grow the active customer base beyond 892." }
   ],
+  // chartData: must sum to Total Revenue = $148,200
+  // Electronics 42% = $62,244 | Fashion 25% = $37,050 | Home 33% = $48,906
+  // $62,244 + $37,050 + $48,906 = $148,200 ✓
   chartData: [
     { name: "Electronics", value: 62244 },
-    { name: "Fashion", value: 37050 },
-    { name: "Home", value: 48906 }
+    { name: "Fashion",     value: 37050 },
+    { name: "Home",        value: 48906 }
   ],
+  // trendData: monthly revenues that sum to $148,200
+  // 7800+9600+10200+11100+12400+13100+13800+14500+15200+16800+17100+6600 = 148,200 ✓
   trendData: [
-    { month: "Jan", revenue: 10000 },
-    { month: "Feb", revenue: 12000 },
-    { month: "Mar", revenue: 11000 },
-    { month: "Apr", revenue: 15000 },
-    { month: "May", revenue: 14000 },
-    { month: "Jun", revenue: 17000 },
-    { month: "Jul", revenue: 16500 },
-    { month: "Aug", revenue: 19000 },
-    { month: "Sep", revenue: 18500 },
-    { month: "Oct", revenue: 21000 },
-    { month: "Nov", revenue: 22000 },
-    { month: "Dec", revenue: 25000 }
+    { month: "Jan", revenue: 7800  },
+    { month: "Feb", revenue: 9600  },
+    { month: "Mar", revenue: 10200 },
+    { month: "Apr", revenue: 11100 },
+    { month: "May", revenue: 12400 },
+    { month: "Jun", revenue: 13100 },
+    { month: "Jul", revenue: 13800 },
+    { month: "Aug", revenue: 14500 },
+    { month: "Sep", revenue: 15200 },
+    { month: "Oct", revenue: 16800 },
+    { month: "Nov", revenue: 17100 },
+    { month: "Dec", revenue: 6600  }
   ]
 };
 
 export default function SharedReport() {
   const { uploadedData: contextData } = useData();
   const [copied, setCopied] = useState(false);
+  const { reportId } = useParams();
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -102,7 +119,7 @@ export default function SharedReport() {
 
         <div className="shared-url-bar">
           <Lock size={10} color="var(--success)" />
-          <span>dsi.ai/report/abc123</span>
+          <span>dsi.ai/report/{reportId || 'shared'}</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -130,7 +147,7 @@ export default function SharedReport() {
         <div className="shared-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
             <span className="badge badge-blue"><Globe size={11} /> Public Report</span>
-            <span className="badge badge-green"><CheckCircle2 size={11} /> AI Verified</span>
+            <span className="badge badge-green"><CheckCircle2 size={11} /> Auto-analyzed</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
               {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns · Qwen-7B
             </span>

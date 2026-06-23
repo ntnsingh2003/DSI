@@ -20,7 +20,14 @@ function buildMessages(columns, sampleRows, rowCount) {
     )
     .join('\n');
 
-  const systemPrompt = `You are a business data analyst. Analyze spreadsheet data and return ONLY a valid JSON object — no explanation, no markdown fences, no extra text before or after the JSON.`;
+  const systemPrompt = `You are a business data analyst. Analyze spreadsheet data and return ONLY a valid JSON object — no explanation, no markdown fences, no extra text before or after the JSON.
+
+CRITICAL MATHEMATICAL RULES — you MUST follow these exactly:
+1. All numeric values in "kpis", "chartData", and "trendData" must be mathematically consistent.
+2. If you include a "Total Revenue" or similar sum KPI, it MUST equal the sum of all values in "chartData" AND approximately equal the sum of all "revenue" values in "trendData".
+3. "Avg Order Value" MUST equal Total Revenue divided by Total Orders (rounded to 2 decimal places).
+4. All trendValue fields MUST include the % sign (e.g., "+12.5%" not "+12.5").
+5. All numeric values in chartData and trendData MUST be plain numbers (no currency symbols, no commas).`;
 
   const userPrompt = `Dataset:
 - Columns: ${columns.join(', ')}
@@ -50,18 +57,27 @@ Return this exact JSON structure with real values from the data:
     { "title": "Action title", "desc": "Specific actionable recommendation" }
   ],
   "chartData": [
-    { "name": "Category from data", "value": 1234 },
-    { "name": "Category from data", "value": 5678 }
+    { "name": "Category A from data", "value": 50000 },
+    { "name": "Category B from data", "value": 30000 },
+    { "name": "Category C from data", "value": 20000 }
   ],
   "trendData": [
-    { "month": "Jan", "revenue": 10000 },
-    { "month": "Feb", "revenue": 12000 },
-    { "month": "Mar", "revenue": 11000 },
-    { "month": "Apr", "revenue": 15000 },
-    { "month": "May", "revenue": 14000 },
-    { "month": "Jun", "revenue": 17000 }
+    { "month": "Jan", "revenue": 8000 },
+    { "month": "Feb", "revenue": 9000 },
+    { "month": "Mar", "revenue": 9500 },
+    { "month": "Apr", "revenue": 10000 },
+    { "month": "May", "revenue": 11000 },
+    { "month": "Jun", "revenue": 11500 },
+    { "month": "Jul", "revenue": 9000 },
+    { "month": "Aug", "revenue": 9500 },
+    { "month": "Sep", "revenue": 8000 },
+    { "month": "Oct", "revenue": 6000 },
+    { "month": "Nov", "revenue": 4500 },
+    { "month": "Dec", "revenue": 4000 }
   ]
-}`;
+}
+
+REMINDER: chartData values (50000+30000+20000 = 100000) and trendData sum (8000+9000+...+4000 = 100000) must match your Total Revenue KPI. Adjust actual numbers to match your dataset — these are just examples of the format.`;
 
   return [
     { role: 'system', content: systemPrompt },
@@ -171,17 +187,23 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
 
   // Validate & fill safe defaults
   return {
+    model: 'Qwen-7B',
     summary: typeof parsed.summary === 'string' && parsed.summary.trim()
       ? parsed.summary
       : `Analysis of ${rows.length.toLocaleString()} rows across ${columns.length} columns.`,
 
     kpis: Array.isArray(parsed.kpis) && parsed.kpis.length >= 1
-      ? parsed.kpis.slice(0, 4).map(k => ({
-          label:      String(k.label      || 'KPI'),
-          value:      String(k.value      || '—'),
-          trend:      k.trend === 'down' ? 'down' : 'up',
-          trendValue: String(k.trendValue || '+0%'),
-        }))
+      ? parsed.kpis.slice(0, 4).map(k => {
+          // Ensure trendValue always has a % sign
+          let tv = String(k.trendValue || '+0%').trim();
+          if (tv && !tv.endsWith('%')) tv = tv + '%';
+          return {
+            label:      String(k.label || 'KPI'),
+            value:      String(k.value || '—'),
+            trend:      k.trend === 'down' ? 'down' : 'up',
+            trendValue: tv,
+          };
+        })
       : [{ label: 'Total Records', value: String(rows.length), trend: 'up', trendValue: '+100%' }],
 
     insights: Array.isArray(parsed.insights)
@@ -195,12 +217,18 @@ export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
         }))
       : [],
 
+    // Parse chartData values as numbers (AI may return strings like "1234")
     chartData: Array.isArray(parsed.chartData)
-      ? parsed.chartData.filter(d => d.name && d.value != null)
+      ? parsed.chartData
+          .map(d => ({ name: String(d.name || ''), value: Number(d.value) }))
+          .filter(d => d.name && !isNaN(d.value) && d.value > 0)
       : [],
 
+    // Parse trendData revenue values as numbers (AI may return strings)
     trendData: Array.isArray(parsed.trendData)
-      ? parsed.trendData.filter(d => d.month && d.revenue != null)
+      ? parsed.trendData
+          .map(d => ({ month: String(d.month || ''), revenue: Number(d.revenue) }))
+          .filter(d => d.month && !isNaN(d.revenue) && d.revenue >= 0)
       : [],
 
     analysisRaw: rawText,

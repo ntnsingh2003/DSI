@@ -41,7 +41,8 @@ export default function Dashboard() {
       ...uploadedData.rows.map(row => 
         headers.map(header => {
           const val = String(row[header] ?? '').replace(/"/g, '""');
-          return val.includes(',') ? `"${val}"` : val;
+          return (val.includes(',') || val.includes('\n') || val.includes('\r') || val.includes('"'))
+            ? `"${val}"` : val;
         }).join(',')
       )
     ].join('\n');
@@ -130,7 +131,7 @@ export default function Dashboard() {
         <div className="page-header">
           <div>
             <h1 className="page-title">{uploadedData.fileName}</h1>
-            <p className="page-subtitle">AI-generated dashboard · Qwen-7B</p>
+            <p className="page-subtitle">AI-generated dashboard · {uploadedData.model || 'Qwen-7B'}</p>
           </div>
           <div className="page-actions">
             <button className="btn-outline" onClick={handleRefresh} style={{ gap: 6 }}>
@@ -138,7 +139,7 @@ export default function Dashboard() {
               Refresh
             </button>
             <button className="btn-outline" onClick={handleExport} style={{ gap: 6 }}><Download size={14} /> Export</button>
-            <Link to="/report/abc123">
+            <Link to="/report/shared">
               <button className="btn-primary" style={{ gap: 6 }}><Share2 size={14} /> Share</button>
             </Link>
           </div>

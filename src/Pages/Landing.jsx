@@ -66,7 +66,7 @@ export default function Landing() {
               Try the Demo
             </button>
           </Link>
-          <Link to="/report/abc123">
+          <Link to="/report/shared">
             <button className="btn-outline" style={{ fontSize: 15, padding: '13px 28px' }}>
               View Sample Report <ChevronRight size={15} />
             </button>
@@ -91,7 +91,7 @@ export default function Landing() {
             </div>
             <div className="preview-main">
               <div className="preview-kpi-row">
-                {['$148K Revenue','1,250 Orders','↑18% Growth','4,520 Customers'].map(k => (
+                {['$148K Revenue','1,250 Orders','↑18% Growth','892 Customers'].map(k => (
                   <div key={k} className="preview-kpi-mini" style={{ padding: '10px 12px' }}>
                     <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4 }}>{k.split(' ').slice(1).join(' ')}</div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>{k.split(' ')[0]}</div>
@@ -161,7 +161,7 @@ export default function Landing() {
               <Zap size={17} /> Start Free Demo
             </button>
           </Link>
-          <Link to="/report/abc123">
+          <Link to="/report/shared">
             <button className="btn-outline" style={{ fontSize: 15, padding: '13px 28px' }}>
               <Globe size={16} /> View Live Report
             </button>

@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Proxy /api/hf/* → https://api-inference.huggingface.co/*
+      // Proxy /api/hf/* → https://router.huggingface.co/*
       // This avoids browser CORS restrictions on the HuggingFace API
       '/api/hf': {
         target: 'https://router.huggingface.co',

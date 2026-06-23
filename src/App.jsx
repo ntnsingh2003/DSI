@@ -12,11 +12,12 @@ function App() {
     <DataProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/"               element={<Landing />}      />
-          <Route path="/dashboard"      element={<Dashboard />}    />
-          <Route path="/chat"           element={<Chat />}         />
-          <Route path="/reports"        element={<Reports />}      />
-          <Route path="/report/abc123"  element={<SharedReport />} />
+          <Route path="/"              element={<Landing />}      />
+          <Route path="/dashboard"     element={<Dashboard />}    />
+          <Route path="/chat"          element={<Chat />}         />
+          <Route path="/reports"       element={<Reports />}      />
+          {/* BUG-03 FIX: Dynamic route — any reportId works, not just "abc123" */}
+          <Route path="/report/:reportId" element={<SharedReport />} />
         </Routes>
       </BrowserRouter>
     </DataProvider>

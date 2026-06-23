@@ -11,9 +11,9 @@ export default function ExcelUploader({ onAnalysisComplete }) {
   const { setUploadedData } = useData();
   const [file, setFile] = useState(null);
   const [parsed, setParsed] = useState(null); // { columns, rows }
-  // Auto-load from .env (VITE_HF_TOKEN), then localStorage, then empty
+  // Auto-load from .env (VITE_HF_TOKEN), then sessionStorage, then empty
   const envToken = import.meta.env.VITE_HF_TOKEN || '';
-  const [apiToken, setApiToken] = useState(() => envToken || localStorage.getItem('hf_token') || '');
+  const [apiToken, setApiToken] = useState(() => envToken || sessionStorage.getItem('hf_token') || '');
   const tokenFromEnv = !!envToken;
   const [showToken, setShowToken] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -76,7 +76,7 @@ export default function ExcelUploader({ onAnalysisComplete }) {
       return;
     }
 
-    if (apiToken.trim()) localStorage.setItem('hf_token', apiToken.trim());
+    if (apiToken.trim()) sessionStorage.setItem('hf_token', apiToken.trim());
     setStatus('analyzing');
     setErrorMsg('');
 
