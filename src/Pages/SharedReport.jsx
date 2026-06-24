@@ -5,7 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import {
   Shield, Globe, Lock, Share2, TrendingUp, TrendingDown,
   Download, ChevronRight, CheckCircle2, Zap,
-  FileSpreadsheet, AlertCircle,
+  FileSpreadsheet, AlertCircle, AlertTriangle, Target,
   DollarSign, ShoppingCart, Users, BarChart2
 } from 'lucide-react';
 import KPICard from '../components/KPICard';
@@ -169,7 +169,7 @@ export default function SharedReport() {
             <span className="badge badge-blue"><Globe size={11} /> Public Report</span>
             <span className="badge badge-green"><CheckCircle2 size={11} /> Auto-analyzed</span>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-              {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns · {uploadedData.model || 'DeepSeek-R1-8B'}
+              {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns · {uploadedData.model || 'Gemini-2.5-Flash'}
             </span>
           </div>
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 10, lineHeight: 1.2 }}>
@@ -184,6 +184,26 @@ export default function SharedReport() {
         </div>
 
         <div className="shared-body">
+          {/* Gemini Unavailability / Fallback Warning Banner */}
+          {uploadedData.isGeminiUnavailable && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '12px 18px',
+              background: 'rgba(245, 158, 11, 0.1)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              borderRadius: 10,
+              marginBottom: 20,
+              color: '#f59e0b',
+              fontSize: 14,
+              fontWeight: 500
+            }}>
+              <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <span>{uploadedData.geminiError || "AI insights are temporarily unavailable due to Gemini server load. Local analytics are still available."}</span>
+            </div>
+          )}
+
           {/* KPI Row */}
           {uploadedData.kpis?.length > 0 && (
             <div className="kpi-grid" style={{ marginBottom: 28 }}>
@@ -213,7 +233,6 @@ export default function SharedReport() {
                   <RevenueAreaChart data={uploadedData.trendData} />
                 </div>
               )}
-              {uploadedData.chartData?.length > 0 && (
                 <div className="chart-card">
                   <div className="chart-card-header">
                     <div>
@@ -221,9 +240,25 @@ export default function SharedReport() {
                       <div className="chart-card-subtitle">AI-extracted</div>
                     </div>
                   </div>
-                  <CategoryBarChart data={uploadedData.chartData} />
+                  {uploadedData.categoryColExists ? (
+                    <CategoryBarChart data={uploadedData.chartData} />
+                  ) : (
+                    <div style={{
+                      height: 240,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: 14,
+                      border: '1px dashed var(--border-subtle)',
+                      borderRadius: 8,
+                      margin: '0 20px 20px 20px',
+                      background: 'rgba(255, 255, 255, 0.01)'
+                    }}>
+                      Category data not available in the dataset.
+                    </div>
+                  )}
                 </div>
-              )}
             </div>
           )}
 
@@ -249,6 +284,42 @@ export default function SharedReport() {
                 <button onClick={handleCopyLink} style={{ flex: 1, padding: '9px', background: 'transparent', border: copied ? '1px solid var(--success)' : '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: 12, color: copied ? 'var(--success)' : 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                   <Share2 size={12} /> {copied ? 'Copied!' : 'Copy Link'}
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* AI Recommendations */}
+          {uploadedData.recommendations?.length > 0 && (
+            <div className="report-section" style={{ marginBottom: 24 }}>
+              <div className="report-section-title" style={{ fontSize: 16, marginBottom: 14 }}>
+                <Target size={16} color="var(--blue-400)" />
+                AI Recommendations
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {uploadedData.recommendations.map((rec, i) => (
+                  <div key={i} style={{ padding: '16px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }} className="animate-fadeInUp">
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{rec.title}</div>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{rec.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Data Anomalies */}
+          {uploadedData.anomalies?.length > 0 && (
+            <div className="report-section" style={{ marginBottom: 24 }}>
+              <div className="report-section-title" style={{ fontSize: 16, marginBottom: 14 }}>
+                <AlertTriangle size={16} color="#ef4444" />
+                Data Anomalies & Outliers
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {uploadedData.anomalies.map((anom, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '16px', background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 'var(--radius-md)' }} className="animate-fadeInUp">
+                    <AlertTriangle size={15} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{anom}</span>
+                  </div>
+                ))}
               </div>
             </div>
           )}

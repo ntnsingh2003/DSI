@@ -7,6 +7,7 @@ import {
   TrendingUp, AlertTriangle, Lightbulb, Target
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { askGeminiChat } from '../api/gemini';
 
 function TypingIndicator() {
   return (
@@ -222,19 +223,31 @@ export default function Chat() {
     setInput('');
     setTyping(true);
 
-    await delay(700 + Math.random() * 500);
-    setTyping(false);
+    try {
+      const reply = await askGeminiChat(text, uploadedData, messages);
+      setTyping(false);
 
-    const response = buildResponse(text, uploadedData);
-    const aiMsg = {
-      id: msgIdRef.current++,
-      role: 'ai',
-      text: response.text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      pills: response.pills,
-      preview: response.preview,
-    };
-    setMessages(prev => [...prev, aiMsg]);
+      const aiMsg = {
+        id: msgIdRef.current++,
+        role: 'ai',
+        text: reply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        pills: [{ label: uploadedData.model || 'Gemini-2.5-Flash', state: 'done' }],
+        preview: text.toLowerCase().includes('kpi') || text.toLowerCase().includes('metric') || text.toLowerCase().includes('revenue'),
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (err) {
+      setTyping(false);
+      const errAlertMsg = {
+        id: msgIdRef.current++,
+        role: 'ai',
+        text: `⚠️ **Error Contacting Gemini**\n\n${err.message}`,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        pills: [{ label: 'Failed', state: 'pending' }],
+        preview: false,
+      };
+      setMessages(prev => [...prev, errAlertMsg]);
+    }
   };
 
   const renderText = (text) =>

@@ -166,9 +166,12 @@ export function computeDataMetrics(columns, rows) {
   let highestSale = 0;
   let lowestSale = parsedRows.length > 0 ? Infinity : 0;
   const categories = {};
-  const products = {};
+  const productsRevenue = {};
+  const productsUnits = {};
   const dates = [];
   const rawDates = [];
+
+  const categoryColExists = !!categoryCol;
 
   parsedRows.forEach(r => {
     totalRevenue += r.revenue;
@@ -176,8 +179,11 @@ export function computeDataMetrics(columns, rows) {
     if (r.revenue > highestSale) highestSale = r.revenue;
     if (r.revenue < lowestSale) lowestSale = r.revenue;
 
-    categories[r.category] = (categories[r.category] || 0) + r.revenue;
-    products[r.product] = (products[r.product] || 0) + r.revenue;
+    if (categoryColExists) {
+      categories[r.category] = (categories[r.category] || 0) + r.revenue;
+    }
+    productsRevenue[r.product] = (productsRevenue[r.product] || 0) + r.revenue;
+    productsUnits[r.product] = (productsUnits[r.product] || 0) + r.qty;
 
     if (r.date) {
       dates.push(r);
@@ -187,7 +193,7 @@ export function computeDataMetrics(columns, rows) {
 
   if (lowestSale === Infinity) lowestSale = 0;
 
-  const totalOrders = rows.length; // number of transactions/rows
+  const totalOrders = rows.length; // number of transactions/rows (COUNT of transactions/rows)
   const avgOrderValue = totalOrders > 0 ? (totalRevenue / totalOrders) : 0;
 
   // Formatting helper
@@ -258,8 +264,8 @@ export function computeDataMetrics(columns, rows) {
     };
 
     revMoM = calculateGrowth(currRev, prevRev);
-    unitsMoM = calculateGrowth(currUnits, prevUnits); // maps to Total Products Sold
-    ordersMoM = calculateGrowth(currUnits, prevUnits); // total orders matches sum of units sold (as requested)
+    unitsMoM = calculateGrowth(currUnits, prevUnits); // SUM of Quantity
+    ordersMoM = calculateGrowth(currOrders, prevOrders); // COUNT of transactions/rows
     
     const currAvg = currOrders > 0 ? (currRev / currOrders) : 0;
     const prevAvg = prevOrders > 0 ? (prevRev / prevOrders) : 0;
@@ -282,10 +288,27 @@ export function computeDataMetrics(columns, rows) {
 
   // Grouped charts
   // Category breakdown
-  const chartData = Object.entries(categories).map(([name, value]) => ({
-    name,
-    value: Math.round(value)
-  })).sort((a, b) => b.value - a.value).slice(0, 8);
+  let chartData = [];
+  let topCategory = 'Category data not available in the dataset.';
+  let topCategoryShare = '0';
+  let bottomCategory = 'Category data not available in the dataset.';
+  let uniqueCategoriesCount = 0;
+
+  if (categoryColExists) {
+    chartData = Object.entries(categories).map(([name, value]) => ({
+      name,
+      value: Math.round(value)
+    })).sort((a, b) => b.value - a.value).slice(0, 8);
+
+    const sortedCategories = Object.entries(categories).sort((a,b) => b[1] - a[1]);
+    if (sortedCategories.length > 0) {
+      topCategory = sortedCategories[0]?.[0] || 'Unknown';
+      const topCategoryVal = sortedCategories[0]?.[1] || 0;
+      topCategoryShare = totalRevenue > 0 ? ((topCategoryVal / totalRevenue) * 100).toFixed(1) : '0';
+      bottomCategory = sortedCategories[sortedCategories.length - 1]?.[0] || 'Unknown';
+      uniqueCategoriesCount = sortedCategories.length;
+    }
+  }
 
   // Monthly or Daily trend
   let groupBy = 'month';
@@ -349,27 +372,27 @@ export function computeDataMetrics(columns, rows) {
     { 
       label: 'Total Sales', 
       value: totalRevenueFormatted, 
-      desc: 'Total revenue generated during the selected period.',
+      desc: 'Total revenue generated (sum of Quantity x Price).',
       trend: getTrendDirection(revMoM), 
       trendValue: formatMoM(revMoM) 
     },
     { 
       label: 'Total Orders', 
-      value: totalUnits.toLocaleString(), // SUM(Units Sold) as requested
-      desc: 'Total orders received (mapped to sum of units sold).',
+      value: totalOrders.toLocaleString(), // COUNT of transactions as requested
+      desc: 'Total number of transactions/rows.',
       trend: getTrendDirection(ordersMoM), 
       trendValue: formatMoM(ordersMoM) 
     },
     { 
       label: 'Average Order Value', 
       value: avgOrderValueFormatted, 
-      desc: 'Average monetary value of each transaction.',
+      desc: 'Average order value (Total Revenue / Total Orders).',
       trend: getTrendDirection(aovMoM), 
       trendValue: formatMoM(aovMoM) 
     },
     { 
       label: 'Total Products Sold', 
-      value: totalUnits.toLocaleString(), // SUM(Units Sold)
+      value: totalUnits.toLocaleString(), // SUM of quantities
       desc: 'Sum of all product quantities sold.',
       trend: getTrendDirection(unitsMoM), 
       trendValue: formatMoM(unitsMoM) 
@@ -390,18 +413,16 @@ export function computeDataMetrics(columns, rows) {
     }
   ];
 
-  // Helper values for generating summary, insights, recommendations
-  const sortedCategories = Object.entries(categories).sort((a,b) => b[1] - a[1]);
-  const topCategory = sortedCategories[0]?.[0] || 'Unknown';
-  const topCategoryVal = sortedCategories[0]?.[1] || 0;
-  const topCategoryShare = totalRevenue > 0 ? ((topCategoryVal / totalRevenue) * 100).toFixed(1) : '0';
-  
-  const bottomCategory = sortedCategories[sortedCategories.length - 1]?.[0] || 'Unknown';
+  // Top Selling Product by Revenue
+  const sortedProductsByRevenue = Object.entries(productsRevenue).sort((a,b) => b[1] - a[1]);
+  const topProductByRevenue = sortedProductsByRevenue[0]?.[0] || 'Unknown';
+  const topProductByRevenueVal = sortedProductsByRevenue[0]?.[1] || 0;
+  const topProductByRevenueShare = totalRevenue > 0 ? ((topProductByRevenueVal / totalRevenue) * 100).toFixed(1) : '0';
 
-  const sortedProducts = Object.entries(products).sort((a,b) => b[1] - a[1]);
-  const topProduct = sortedProducts[0]?.[0] || 'Unknown';
-  const topProductVal = sortedProducts[0]?.[1] || 0;
-  const topProductShare = totalRevenue > 0 ? ((topProductVal / totalRevenue) * 100).toFixed(1) : '0';
+  // Top Selling Product by Units Sold
+  const sortedProductsByUnits = Object.entries(productsUnits).sort((a,b) => b[1] - a[1]);
+  const topProductByUnits = sortedProductsByUnits[0]?.[0] || 'Unknown';
+  const topProductByUnitsQty = sortedProductsByUnits[0]?.[1] || 0;
 
   return {
     kpis,
@@ -417,68 +438,18 @@ export function computeDataMetrics(columns, rows) {
     avgOrderValueFormatted,
     highestSaleFormatted,
     lowestSaleFormatted,
+    categoryColExists,
     topCategory,
     topCategoryShare,
     bottomCategory,
-    topProduct,
-    topProductShare,
+    topProduct: topProductByRevenue,
+    topProductShare: topProductByRevenueShare,
+    topProductByRevenue,
+    topProductByRevenueShare,
+    topProductByUnits,
+    topProductByUnitsQty,
     currencyPrefix,
-    uniqueCategoriesCount: sortedCategories.length,
+    uniqueCategoriesCount,
     transactionCount: totalOrders,
-  };
-}
-
-/**
- * Main export: analyzes data offline completely in-browser
- */
-export async function analyzeDataWithAI(columns, rows, apiToken, onProgress) {
-  onProgress?.('Analyzing data client-side...');
-  const computed = computeDataMetrics(columns, rows);
-
-  onProgress?.('Formulating business recommendations...');
-  
-  const cur = computed.currencyPrefix;
-  const totalRev = computed.totalRevenueFormatted;
-  const avgOrder = computed.avgOrderValueFormatted;
-  const count = computed.transactionCount;
-  
-  const summary = `This business intelligence report summarizes the transaction metrics from ${computed.transactionCount.toLocaleString()} recorded sales rows. Total sales revenue reached ${totalRev} with an average transaction value of ${avgOrder}. Sales activity spans ${computed.uniqueCategoriesCount} categories, with the top-performing category being "${computed.topCategory}" representing ${computed.topCategoryShare}% of total sales.`;
-
-  const insights = [
-    `Total sales revenue reached ${totalRev} across ${computed.totalUnits.toLocaleString()} units and ${count.toLocaleString()} orders, indicating healthy purchase volumes.`,
-    `The "${computed.topCategory}" category led revenue generation, accounting for ${computed.topCategoryShare}% (${cur}${Math.round(computed.chartData[0]?.value || 0).toLocaleString()}) of overall sales.`,
-    `Average transaction value stands at ${avgOrder}, providing a baseline for cross-selling and bundling campaigns.`,
-    `The highest transaction value was ${computed.highestSaleFormatted}, contrasting with the lowest recorded sale of ${computed.lowestSaleFormatted}.`,
-    `The top individual product by total sales revenue is "${computed.topProduct}", which contributed ${computed.topProductShare}% of all sales.`
-  ];
-
-  const recommendations = [
-    {
-      title: `Double-Down on "${computed.topCategory}"`,
-      desc: `Allocate additional marketing budget and prime shelf space to the "${computed.topCategory}" category, which contributes the majority (${computed.topCategoryShare}%) of your revenue.`
-    },
-    {
-      title: `Optimize Transaction Sizes`,
-      desc: `Introduce product bundles, loyalty points, or free shipping thresholds slightly above your average order value of ${avgOrder} to lift overall margins.`
-    },
-    {
-      title: `Diversify Weak Categories`,
-      desc: `Launch targeted promotional discount campaigns for lower-performing segments like "${computed.bottomCategory}" to liquidate slow inventory and broaden customer appeal.`
-    }
-  ];
-
-  // Small delay for smooth loader visualization
-  await new Promise(resolve => setTimeout(resolve, 300));
-
-  return {
-    model: 'Local BI Engine',
-    summary,
-    kpis: computed.kpis,
-    insights,
-    recommendations,
-    chartData: computed.chartData,
-    trendData: computed.trendData,
-    analysisRaw: JSON.stringify({ summary, insights, recommendations }, null, 2),
-    ...computed
   };
 }

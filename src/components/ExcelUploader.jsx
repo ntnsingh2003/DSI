@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import Papa from 'papaparse';
-import { analyzeDataWithAI } from '../api/huggingface';
+import * as XLSX from 'xlsx';
+import { analyzeDataWithGemini } from '../api/gemini';
 import { useData } from '../context/DataContext';
 import {
   Upload, FileSpreadsheet, X, Eye, Loader2,
@@ -24,7 +25,7 @@ export default function ExcelUploader({ onAnalysisComplete }) {
     setErrorMsg('');
 
     if (columns.length === 0 || rows.length === 0) {
-      setErrorMsg('The CSV file appears to be empty.');
+      setErrorMsg('The uploaded file appears to be empty.');
       setStatus('error');
       return;
     }
@@ -43,13 +44,13 @@ export default function ExcelUploader({ onAnalysisComplete }) {
       if (!hasQuantity) missing.push('Quantity');
       if (!hasPrice) missing.push('Price');
       
-      setErrorMsg(`Invalid CSV structure. Missing expected columns: ${missing.join(', ')}. Please ensure your CSV contains headers for Date, Product, Quantity, and Price (e.g., Date, Product Name, Units Sold, Price).`);
+      setErrorMsg(`Invalid file structure. Missing expected columns: ${missing.join(', ')}. Please ensure your file contains headers for Date, Product, Quantity, and Price (e.g., Date, Product Name, Units Sold, Price).`);
       setStatus('error');
       return;
     }
 
     try {
-      const result = await analyzeDataWithAI(columns, rows, '', (msg) => setStatusMsg(msg));
+      const result = await analyzeDataWithGemini(columns, rows, (msg) => setStatusMsg(msg));
       const fullData = {
         fileName,
         columns,
@@ -68,30 +69,54 @@ export default function ExcelUploader({ onAnalysisComplete }) {
   };
 
   const parseFile = useCallback((f) => {
-    if (!f.name.toLowerCase().endsWith('.csv')) {
-      setErrorMsg('Please upload a CSV file only.');
+    const name = f.name.toLowerCase();
+    const isCSV = name.endsWith('.csv');
+    const isExcel = name.endsWith('.xlsx') || name.endsWith('.xls');
+
+    if (!isCSV && !isExcel) {
+      setErrorMsg('Please upload a CSV or Excel file only.');
       setStatus('error');
       return;
     }
 
     setStatus('parsing');
-    setStatusMsg('Reading CSV file...');
     setErrorMsg('');
     setFile(f);
 
-    Papa.parse(f, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        const rows = results.data;
-        const columns = results.meta.fields || [];
-        processAndAnalyze(f.name, columns, rows);
-      },
-      error: (err) => {
-        setErrorMsg('Error parsing CSV file: ' + err.message);
-        setStatus('error');
-      }
-    });
+    if (isCSV) {
+      setStatusMsg('Reading CSV file...');
+      Papa.parse(f, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const rows = results.data;
+          const columns = results.meta.fields || [];
+          processAndAnalyze(f.name, columns, rows);
+        },
+        error: (err) => {
+          setErrorMsg('Error parsing CSV file: ' + err.message);
+          setStatus('error');
+        }
+      });
+    } else {
+      setStatusMsg('Reading Excel file...');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+          const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+          processAndAnalyze(f.name, columns, rows);
+        } catch (err) {
+          setErrorMsg('Error parsing Excel file: ' + err.message);
+          setStatus('error');
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    }
   }, [onAnalysisComplete]);
 
   const handleDrop = useCallback((e) => {
@@ -131,7 +156,7 @@ export default function ExcelUploader({ onAnalysisComplete }) {
             <input
               ref={inputRef}
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               style={{ display: 'none' }}
               onChange={handleFileInput}
             />
@@ -141,10 +166,10 @@ export default function ExcelUploader({ onAnalysisComplete }) {
               <Upload size={32} color={dragging ? 'var(--blue-400)' : 'var(--text-muted)'} />
             )}
             <div className="upload-zone-title">
-              {dragging ? 'Drop your CSV file here' : 'Upload CSV File'}
+              {dragging ? 'Drop your CSV or Excel file here' : 'Upload CSV or Excel File'}
             </div>
             <div className="upload-zone-sub">
-              Drag & drop or click to browse · CSV files supported
+              Drag & drop or click to browse · CSV and Excel files supported
             </div>
           </div>
           {import.meta.env.DEV && (
