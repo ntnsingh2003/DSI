@@ -38,77 +38,86 @@ function parseGeminiJSON(text) {
 
 /** Preprocesses the calculated metrics to create a compact context string */
 function buildPreprocessedContext(computed) {
-  const categoryContext = computed.categoryColExists
-    ? `Top Performing Category: "${computed.topCategory}" (${computed.topCategoryShare}% of overall sales)
-Category Breakdown:
-${JSON.stringify(computed.chartData, null, 2)}`
-    : `Category: Category data not available in the dataset.`;
+  const kpisText = computed.kpis.map(k => `${k.label}: ${k.value} (${k.desc})`).join('\n');
+  const anomaliesText = computed.anomalies.length > 0
+    ? computed.anomalies.map(a => `- ${a}`).join('\n')
+    : 'No anomalies detected.';
+
+  // Numeric column profile details
+  const numericStats = Object.entries(computed.profile.numericColumns || {})
+    .map(([col, stats]) => `- ${col}: Sum=${stats.sum.toLocaleString()}, Average=${stats.avg.toLocaleString()}, Min=${stats.min.toLocaleString()}, Max=${stats.max.toLocaleString()}`)
+    .join('\n');
+
+  // Categorical frequency details
+  const categoryStats = Object.entries(computed.profile.categoricalColumns || {})
+    .map(([col, stats]) => `- ${col} (${stats.uniqueCount} unique values). Top values: ${stats.topValues.map(v => `"${v.name}" (${v.count})`).join(', ')}`)
+    .join('\n');
 
   return `
 --- DATASET CONTEXT ---
 File Name: ${computed.fileName || 'data.csv'}
-Total Transactions (Rows/Orders): ${computed.transactionCount.toLocaleString()}
-Total Sales Revenue: ${computed.totalRevenueFormatted}
-Total Products Sold (Quantity): ${computed.totalUnits.toLocaleString()}
-Average Order Value (AOV): ${computed.avgOrderValueFormatted}
-Highest Transaction: ${computed.highestSaleFormatted}
-Lowest Transaction: ${computed.lowestSaleFormatted}
-${categoryContext}
-Top Selling Product by Revenue: "${computed.topProductByRevenue}" (${computed.topProductByRevenueShare}% of overall sales)
-Top Selling Product by Units Sold: "${computed.topProductByUnits}" (${computed.topProductByUnitsQty.toLocaleString()} units sold)
+Dataset Classification: ${computed.datasetType}
+Total Rows: ${computed.rowCount.toLocaleString()}
+Total Columns: ${computed.profile.columnCount}
+Columns Present: ${computed.profile.columns.join(', ')}
 
-Monthly/Daily Revenue Trends:
+Calculated Dynamic KPIs:
+${kpisText}
+
+Numeric Columns Profile:
+${numericStats || 'No numeric columns.'}
+
+Categorical Columns Frequencies (Top Values):
+${categoryStats || 'No categorical columns.'}
+
+Detected Anomalies (Calculated Locally):
+${anomaliesText}
+
+Trend Data:
 ${JSON.stringify(computed.trendData, null, 2)}
 `;
 }
 
 /** Helper to generate fallback local analytics when Gemini is unavailable */
 function getLocalFallbackPayload(computed, errorMsg) {
-  const categoryRecommendation = computed.categoryColExists
-    ? {
-        title: `Business: Optimize "${computed.topCategory}" Sales`,
-        desc: `Maximize profitability by scaling advertising and promotional efforts for your primary category ("${computed.topCategory}"), which generates ${computed.topCategoryShare}% of total sales.`
-      }
-    : {
-        title: `Business: Focus on "${computed.topProductByRevenue}" Sales`,
-        desc: `Since category data is not available, direct marketing support towards your highest-grossing product "${computed.topProductByRevenue}", which drives ${computed.topProductByRevenueShare}% of total sales.`
-      };
+  const defaultRecs = [
+    {
+      title: 'Actionable Suggestion: Verify Data Types',
+      desc: 'Ensure your columns are formatted consistently (e.g. valid date strings and numeric values) to optimize analysis.'
+    },
+    {
+      title: 'Actionable Suggestion: Check Missing Values',
+      desc: 'Verify if column values are fully populated. Duplicate records or null values might skew summaries.'
+    }
+  ];
+
+  if (computed.kpis.length > 0) {
+    defaultRecs.push({
+      title: `KPI Insights: Analyze "${computed.kpis[0].label}"`,
+      desc: `Monitor the performance of your primary metric "${computed.kpis[0].label}" valued at ${computed.kpis[0].value}.`
+    });
+  }
 
   return {
     model: 'Local Fallback',
     isGeminiUnavailable: true,
     geminiError: errorMsg,
-    summary: 'AI insights are temporarily unavailable. Local analytics calculations are still active and displayed below.',
+    summary: 'Executive Summary is temporarily unavailable. Local analytics calculations are still active and displayed below.',
     insights: [
-      `Total Revenue: ${computed.totalRevenueFormatted} (Formula used: SUM(Quantity × Price))`,
-      `Total Orders: ${computed.totalOrders.toLocaleString()} transactions/rows (Formula used: COUNT(transactions/rows))`,
-      `Total Products Sold: ${computed.totalUnits.toLocaleString()} units (Formula used: SUM(Quantity))`,
-      `Average Order Value (AOV): ${computed.avgOrderValueFormatted} (Formula used: Total Revenue ÷ Total Orders)`,
-      computed.categoryColExists 
-        ? `Top Performing Category: "${computed.topCategory}" representing ${computed.topCategoryShare}% of total sales.` 
-        : `Category: Category data not available in the dataset.`,
-      `Top Selling Product by Revenue: "${computed.topProductByRevenue}" representing ${computed.topProductByRevenueShare}% of total sales.`,
-      `Top Selling Product by Units Sold: "${computed.topProductByUnits}" with ${computed.topProductByUnitsQty.toLocaleString()} units sold.`,
-      `Highest Sale: ${computed.highestSaleFormatted} for a single transaction (Formula used: Max(Quantity × Price))`,
-      `Lowest Sale: ${computed.lowestSaleFormatted} for a single transaction (Formula used: Min(Quantity × Price))`
+      `Dataset classified as "${computed.datasetType}".`,
+      `Scanned ${computed.rowCount.toLocaleString()} rows and ${computed.profile.columnCount} columns.`,
+      `Primary metric determined: "${computed.mappedCols.metric || 'N/A'}".`,
+      computed.anomalies.length > 0 ? `Detected ${computed.anomalies.length} data anomalies locally.` : 'No major data anomalies detected locally.'
     ],
-    recommendations: [
-      categoryRecommendation,
-      {
-        title: `Inventory: Monitor "${computed.topProductByUnits}" Stock Levels`,
-        desc: `Keep inventory levels stable for top product "${computed.topProductByUnits}" by units sold (${computed.topProductByUnitsQty.toLocaleString()} units) to prevent potential stockouts.`
-      },
-      {
-        title: `Marketing: Leverage AOV of ${computed.avgOrderValueFormatted}`,
-        desc: `Create targeted order-bundling strategies and free-shipping thresholds slightly above ${computed.avgOrderValueFormatted} to boost order sizes.`
-      }
-    ],
-    anomalies: [
-      'Standard local data processing is active. Advanced anomaly detection requires active Gemini connection.'
-    ],
-    chartData: computed.chartData,
-    trendData: computed.trendData,
-    analysisRaw: JSON.stringify({ error: errorMsg }),
+    recommendations: defaultRecs,
+    risks: computed.anomalies.length > 0 ? computed.anomalies : ['Review dataset columns for potential inconsistencies.'],
+    opportunities: ['Examine time series trends for seasonal patterns.'],
+    patterns: ['Check categorical variables for frequency distribution clusters.'],
+    forecast: ['Use historical records to establish future baselines.'],
+    health: 'Stable (calculated locally)',
+    strengths: ['Deterministically calculated KPIs are fully active.'],
+    weaknesses: computed.anomalies.slice(0, 3),
+    conclusion: 'Local profiling is active. Connect to Google Gemini for advanced executive summaries and strategic opportunities.',
     ...computed
   };
 }
@@ -150,29 +159,53 @@ export async function analyzeDataWithGemini(columns, rows, onProgress) {
   const contextText = buildPreprocessedContext(computed);
 
   const systemInstruction = `
-You are DSI Business Intelligence AI, a world-class analytics reasoning engine.
-Your task is to analyze the provided preprocessed dataset context and return a valid JSON object summarizing performance, insights, recommendations, and anomalies.
+You are DSI Business Intelligence AI, a world-class enterprise analytics engine.
+Your task is to analyze the provided preprocessed dataset context (including local statistical summaries and anomalies) and return a valid JSON object summarizing performance, insights, recommendations, risks, and forecasts.
+
+NEVER perform calculations yourself. Focus on explaining patterns, business threats, opportunities, and strategic advice.
 
 CRITICAL JSON STRUCTURE:
 Return ONLY a valid JSON object, without markdown code fences or other text.
 {
-  "summary": "An executive business overview (2-3 sentences) summarising overall revenue, order volume, and sales trends.",
+  "summary": "An executive business overview (2-3 sentences) summarizing overall dataset significance, key outcomes, and health.",
   "insights": [
-    "Insight 1 about top-selling products and categories",
-    "Insight 2 about category distributions",
-    "Insight 3 about growth opportunities and potential campaigns",
-    "Insight 4 about monthly/daily revenue trends",
-    "Insight 5 about customer buying patterns"
+    "Insight 1 explaining key performance drivers",
+    "Insight 2 explaining categorical distributions",
+    "Insight 3 explaining interesting correlations",
+    "Insight 4 explaining temporal or trend patterns",
+    "Insight 5 explaining customer/employee behavior"
   ],
   "recommendations": [
     { "title": "Business: [Title]", "desc": "[Detailed actionable business recommendation]" },
-    { "title": "Inventory: [Title]", "desc": "[Detailed inventory advice based on categories/products]" },
-    { "title": "Marketing: [Title]", "desc": "[Detailed marketing suggestion based on buying trends]" }
+    { "title": "Operations: [Title]", "desc": "[Detailed operational advice based on categories]" },
+    { "title": "Strategic: [Title]", "desc": "[Detailed strategic suggestion based on trends]" }
   ],
-  "anomalies": [
-    "Anomaly 1 (e.g., unusual sales spikes, revenue drops, or extreme transactions)",
-    "Anomaly 2 (e.g., product dominance anomalies or lack of historical trend outliers)"
-  ]
+  "risks": [
+    "Risk 1 (explain structural dataset anomalies or performance gaps)",
+    "Risk 2 (explain business risks or market drops)"
+  ],
+  "opportunities": [
+    "Opportunity 1 (explain growth possibilities or target campaigns)",
+    "Opportunity 2 (explain category development opportunities)"
+  ],
+  "patterns": [
+    "Pattern 1 (explain seasonality or frequent behaviors)",
+    "Pattern 2 (explain segment concentrations)"
+  ],
+  "forecast": [
+    "Forecast Suggestion 1 (propose what metrics to project and how)",
+    "Forecast Suggestion 2 (propose seasonal changes to prepare for)"
+  ],
+  "health": "Detailed rating of business performance based on KPIs (e.g. Excellent, At Risk, Satisfactory, Stable)",
+  "strengths": [
+    "Strength 1 identified in performance",
+    "Strength 2 identified in consistency"
+  ],
+  "weaknesses": [
+    "Weakness 1 identified in performance or operational drops",
+    "Weakness 2 identified in data anomalies"
+  ],
+  "conclusion": "A concise concluding paragraph summarizing key takeaways."
 }
 `;
 
@@ -215,15 +248,19 @@ Return ONLY a valid JSON object, without markdown code fences or other text.
         return {
           model: modelName,
           isGeminiUnavailable: false,
-          summary: typeof parsed.summary === 'string' ? parsed.summary : `Analysis of ${computed.transactionCount} transactions.`,
+          summary: typeof parsed.summary === 'string' ? parsed.summary : `Analysis of ${computed.rowCount} rows.`,
           insights: Array.isArray(parsed.insights) ? parsed.insights.map(String) : [],
-          recommendations: Array.isArray(parsed.recommendations) 
-            ? parsed.recommendations.map(r => ({ title: String(r.title || ''), desc: String(r.desc || '') })) 
+          recommendations: Array.isArray(parsed.recommendations)
+            ? parsed.recommendations.map(r => ({ title: String(r.title || ''), desc: String(r.desc || '') }))
             : [],
-          anomalies: Array.isArray(parsed.anomalies) ? parsed.anomalies.map(String) : [],
-          chartData: computed.chartData,
-          trendData: computed.trendData,
-          analysisRaw: text,
+          risks: Array.isArray(parsed.risks) ? parsed.risks.map(String) : [],
+          opportunities: Array.isArray(parsed.opportunities) ? parsed.opportunities.map(String) : [],
+          patterns: Array.isArray(parsed.patterns) ? parsed.patterns.map(String) : [],
+          forecast: Array.isArray(parsed.forecast) ? parsed.forecast.map(String) : [],
+          health: typeof parsed.health === 'string' ? parsed.health : 'Stable',
+          strengths: Array.isArray(parsed.strengths) ? parsed.strengths.map(String) : [],
+          weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.map(String) : [],
+          conclusion: typeof parsed.conclusion === 'string' ? parsed.conclusion : 'Analysis completed successfully.',
           ...computed
         };
       } catch (error) {
@@ -270,13 +307,26 @@ Additional AI Aggregations:
 - Executive Summary: ${data.summary}
 - Insights: ${JSON.stringify(data.insights)}
 - Recommendations: ${JSON.stringify(data.recommendations)}
-- Anomalies: ${JSON.stringify(data.anomalies)}
+- Risks: ${JSON.stringify(data.risks)}
+- Opportunities: ${JSON.stringify(data.opportunities)}
+- Patterns: ${JSON.stringify(data.patterns)}
+- Forecast Suggestions: ${JSON.stringify(data.forecast)}
+- Business Health: ${data.health}
+- Strengths: ${JSON.stringify(data.strengths)}
+- Weaknesses: ${JSON.stringify(data.weaknesses)}
+- Conclusion: ${data.conclusion}
 `;
 
     const chatPrompt = `
 You are DSI AI Chatbot, an expert business data analyst.
-You must answer the user's question based ONLY on the dataset context and aggregations provided below.
-If a question is completely unrelated to the dataset, state that you are grounded in this dataset and can only answer questions related to it.
+You must answer the user's question based ONLY on the dataset context, aggregations, local statistics, and profiles provided below.
+
+RULES:
+1. Answer strictly based on the uploaded data.
+2. If the user asks for a calculation, answer based on the precomputed summaries in the context (DO NOT calculate or hallucinate any numbers not in the summaries).
+3. If the data to answer a query is not present in the summaries or context, state clearly: "I cannot answer this with confidence as the required data is not available in the uploaded dataset summary."
+4. If a question is completely unrelated to the dataset, state that you are grounded in this dataset and can only answer questions related to it.
+5. Answer in a professional, clean, concise business tone. Use markdown bullet points and bold formatting where appropriate.
 
 Context:
 ${fullContext}

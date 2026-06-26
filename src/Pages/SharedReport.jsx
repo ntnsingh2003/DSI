@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { RevenueAreaChart, CategoryBarChart, PIE_COLORS } from '../components/RevenueChart';
+import { RevenueAreaChart, CategoryBarChart } from '../components/RevenueChart';
 import { useData } from '../context/DataContext';
 import { Link, useParams } from 'react-router-dom';
 import {
@@ -12,65 +12,60 @@ import KPICard from '../components/KPICard';
 
 const ICON_MAP = {
   'Total Sales': DollarSign,
+  'Total Revenue': DollarSign,
+  'Total Income': DollarSign,
+  'Total Expense': TrendingDown,
+  'Net Profit': DollarSign,
   'Total Orders': ShoppingCart,
+  'Ad Spend': DollarSign,
   'Average Order Value': BarChart2,
   'Total Products Sold': Users,
+  'Units Sold': Users,
   'Highest Sale': TrendingUp,
   'Lowest Sale': TrendingDown,
+  'Attendance Rate': CheckCircle2,
+  'Present Days': CheckCircle2,
+  'Active Employees': Users,
+  'Attrition Rate': Users,
+  'Average Score': Target,
+  'Win Rate %': Target,
+  'Stock Value': FileSpreadsheet,
+  'Unique SKUs': FileSpreadsheet,
 };
 
 const ICON_BKGS = {
   'Total Sales': 'rgba(59,130,246,0.1)',
+  'Total Revenue': 'rgba(59,130,246,0.1)',
+  'Total Income': 'rgba(59,130,246,0.1)',
+  'Total Expense': 'rgba(239,68,68,0.1)',
+  'Net Profit': 'rgba(16,185,129,0.1)',
   'Total Orders': 'rgba(99,102,241,0.1)',
   'Average Order Value': 'rgba(245,158,11,0.1)',
   'Total Products Sold': 'rgba(16,185,129,0.1)',
+  'Units Sold': 'rgba(16,185,129,0.1)',
   'Highest Sale': 'rgba(20,184,166,0.1)',
   'Lowest Sale': 'rgba(239,68,68,0.1)',
+  'Attendance Rate': 'rgba(16,185,129,0.1)',
+  'Present Days': 'rgba(16,185,129,0.1)',
+  'Active Employees': 'rgba(59,130,246,0.1)',
+  'Attrition Rate': 'rgba(239,68,68,0.1)',
+  'Average Score': 'rgba(99,102,241,0.1)',
+  'Win Rate %': 'rgba(20,184,166,0.1)',
+  'Stock Value': 'rgba(245,158,11,0.1)',
+  'Unique SKUs': 'rgba(99,102,241,0.1)',
 };
 
-function NoReport() {
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40, textAlign: 'center' }}>
-      <div style={{ width: 60, height: 60, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <AlertCircle size={28} color="#ef4444" />
-      </div>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)' }}>Report not found</h2>
-      <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 400, lineHeight: 1.7 }}>
-        This shared report link is invalid or has expired. Generate a new one by uploading your data.
-      </p>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <Link to="/chat">
-          <button className="btn-primary" style={{ gap: 6 }}><Zap size={14} /> Upload & Analyze Data</button>
-        </Link>
-        <Link to="/">
-          <button className="btn-outline" style={{ gap: 6 }}>Back to Home</button>
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-// ── Mock fallback data — all numbers are mathematically consistent ──────────
-// Total Revenue = $148,200  (verified: sum of trendData = $148,200)
-// Avg Order Value = Total Revenue / Total Orders = $148,200 / 1,250 = $118.56  ✓
-// chartData breakdown: Electronics (42%) = $62,244 | Fashion (25%) = $37,050 | Home (33%) = $48,906
-//   → $62,244 + $37,050 + $48,906 = $148,200  ✓
-// trendData monthly sums: $7,800+$9,600+$10,200+$11,100+$12,400+$13,100+$13,800+$14,500+$15,200+$16,800+$17,100+$6,600 = $148,200  ✓
-//   (Note: partial Dec as data cut-off in file)
 const MOCK_FALLBACK_DATA = {
   fileName: "quarterly_sales_2026.xlsx",
+  datasetType: "Sales",
   rowCount: 1420,
   columns: ["Month", "Revenue", "SalesCount", "AverageOrderValue", "Category"],
   summary: "This report provides a comprehensive analysis of the company's sales performance for the year 2026. Key findings indicate a steady growth in revenue of 18.3%, driven primarily by strong performance in the Electronics (42%) and Home (33%) categories. Total revenue reached $148,200 from 1,250 orders at an average order value of $118.56.",
   kpis: [
-    // Total Revenue = sum of all monthly revenues in trendData below
-    { label: "Total Revenue", value: "$148,200", trend: "up", trendValue: "+18.3%" },
-    // Total Orders: 1,250  →  AOV = $148,200 / 1,250 = $118.56
-    { label: "Total Orders", value: "1,250", trend: "up", trendValue: "+12.5%" },
-    // Avg Order Value = $148,200 ÷ 1,250 = $118.56
-    { label: "Avg Order Value", value: "$118.56", trend: "up", trendValue: "+5.1%" },
-    // Unique customers — realistic: ~3.6 orders per customer on average for repeat buyers
-    { label: "Active Customers", value: "892", trend: "up", trendValue: "+8.2%" }
+    { label: "Total Revenue", value: "$148,200", trend: "up", trendValue: "+18.3%", desc: "Total sales revenue generated." },
+    { label: "Total Orders", value: "1,250", trend: "up", trendValue: "+12.5%", desc: "Count of transactions recorded." },
+    { label: "Average Order Value", value: "$118.56", trend: "up", trendValue: "+5.1%", desc: "Average order value." },
+    { label: "Units Sold", value: "3,892", trend: "up", trendValue: "+8.2%", desc: "Total units sold." }
   ],
   insights: [
     "Total revenue of $148,200 grew by 18.3% compared to the previous year, driven by holiday sales and promotional campaigns.",
@@ -84,16 +79,32 @@ const MOCK_FALLBACK_DATA = {
     { title: "Targeted Marketing for Fashion", desc: "Launch promotional campaigns to boost Fashion category revenue beyond its current 25% share ($37,050) by targeting low-engagement customer segments." },
     { title: "Loyalty Program Expansion", desc: "Introduce new incentives to raise the average order value above $118.56 and grow the active customer base beyond 892." }
   ],
-  // chartData: must sum to Total Revenue = $148,200
-  // Electronics 42% = $62,244 | Fashion 25% = $37,050 | Home 33% = $48,906
-  // $62,244 + $37,050 + $48,906 = $148,200 ✓
+  risks: [
+    "Potential stock shortages in high-demand Electronics products due to shipping delays.",
+    "Declining performance in minor categories causing marginal drag on profit growth."
+  ],
+  strengths: [
+    "Solid revenue margins driven by primary categories (Electronics and Home).",
+    "Customer repeat transaction rate increased by 12% MoM."
+  ],
+  weaknesses: [
+    "Seasonal sales declines observed mid-year in the Fashion segment.",
+    "Data collection gap in late December causing incomplete monthly analytics representation."
+  ],
+  opportunities: [
+    "Introduce digital bundling of products to cross-sell Electronics and Home segments.",
+    "Leverage email campaigns focused on customer retention during Q3."
+  ],
+  conclusion: "The quarterly sales performance for 2026 demonstrates robust financial health, led by Electronics. Addressing stock levels and inventory planning in Electronics while boosting Fashion sales via loyalty campaigns will drive high returns in subsequent quarters.",
+  anomalies: [
+    "Extreme revenue transaction outlier ($5,400) recorded in August.",
+    "Expected transaction dip in December due to year-end ledger cut-offs."
+  ],
   chartData: [
     { name: "Electronics", value: 62244 },
     { name: "Fashion",     value: 37050 },
     { name: "Home",        value: 48906 }
   ],
-  // trendData: monthly revenues that sum to $148,200
-  // 7800+9600+10200+11100+12400+13100+13800+14500+15200+16800+17100+6600 = 148,200 ✓
   trendData: [
     { month: "Jan", revenue: 7800  },
     { month: "Feb", revenue: 9600  },
@@ -107,7 +118,9 @@ const MOCK_FALLBACK_DATA = {
     { month: "Oct", revenue: 16800 },
     { month: "Nov", revenue: 17100 },
     { month: "Dec", revenue: 6600  }
-  ]
+  ],
+  categoryColExists: true,
+  mappedCols: { category: "Category", metric: "Revenue" }
 };
 
 export default function SharedReport() {
@@ -129,12 +142,42 @@ export default function SharedReport() {
 
   return (
     <div className="shared-page">
+      {/* Printable CSS block */}
+      <style>{`
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          .shared-topbar, .shared-url-bar, .page-actions, button {
+            display: none !important;
+          }
+          .shared-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+          }
+          .report-section, .chart-card {
+            border: 1px solid #ccc !important;
+            background: white !important;
+            color: black !important;
+            page-break-inside: avoid;
+            margin-bottom: 20px !important;
+          }
+          .badge, .column-badge {
+            border: 1px solid #666 !important;
+            color: black !important;
+            background: transparent !important;
+          }
+        }
+      `}</style>
+
       {/* Top Bar */}
       <div className="shared-topbar">
         <div className="shared-branding">
           <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg,#2563eb,#60a5fa)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: 13, color: 'white' }}>D</div>
           <span style={{ fontWeight: 800, fontSize: 17, background: 'linear-gradient(135deg,#fff,#60a5fa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', marginLeft: 8 }}>DSI</span>
-          <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>· Shared Dashboard</span>
+          <span style={{ marginLeft: 8, fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>· Shared Report</span>
         </div>
 
         <div className="shared-url-bar">
@@ -153,11 +196,9 @@ export default function SharedReport() {
           >
             <Share2 size={11} /> {copied ? 'Link Copied!' : 'Share'}
           </button>
-          <Link to="/">
-            <button className="btn-primary" style={{ fontSize: 12, padding: '7px 16px', gap: 6 }}>
-              <Zap size={12} /> Get DSI
-            </button>
-          </Link>
+          <button onClick={handleExportPDF} className="btn-primary" style={{ fontSize: 12, padding: '7px 16px', gap: 6 }}>
+            <Download size={12} /> Export PDF
+          </button>
         </div>
       </div>
 
@@ -175,7 +216,7 @@ export default function SharedReport() {
           <h1 style={{ fontSize: 32, fontWeight: 900, marginBottom: 10, lineHeight: 1.2 }}>
             {uploadedData.fileName}
             <span className="gradient-text" style={{ display: 'block', fontSize: 22 }}>
-              AI Analysis Dashboard
+              {uploadedData.datasetType} Analysis Dashboard
             </span>
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: 680 }}>
@@ -208,12 +249,9 @@ export default function SharedReport() {
           {uploadedData.kpis?.length > 0 && (
             <div className="kpi-grid" style={{ marginBottom: 28 }}>
               {uploadedData.kpis.map((k, i) => {
-                const kpi = {
-                  ...k,
-                  icon: ICON_MAP[k.label] || BarChart2,
-                  iconBg: ICON_BKGS[k.label] || 'rgba(59,130,246,0.1)',
-                };
-                return <KPICard key={kpi.label} {...kpi} index={i} />;
+                const IconComponent = ICON_MAP[k.label] || BarChart2;
+                const iconBg = ICON_BKGS[k.label] || 'rgba(59,130,246,0.1)';
+                return <KPICard key={k.label} label={k.label} value={k.value} desc={k.desc} trend={k.trend || 'up'} trendValue={k.trendValue || '+0%'} icon={IconComponent} iconBg={iconBg} index={i} />;
               })}
             </div>
           )}
@@ -225,7 +263,7 @@ export default function SharedReport() {
                 <div className="chart-card">
                   <div className="chart-card-header">
                     <div>
-                      <div className="chart-card-title">Revenue Trend</div>
+                      <div className="chart-card-title">Trend over Time</div>
                       <div className="chart-card-subtitle">{uploadedData.fileName}</div>
                     </div>
                     <span className="badge badge-blue" style={{ fontSize: 11 }}>Live</span>
@@ -233,32 +271,32 @@ export default function SharedReport() {
                   <RevenueAreaChart data={uploadedData.trendData} />
                 </div>
               )}
-                <div className="chart-card">
-                  <div className="chart-card-header">
-                    <div>
-                      <div className="chart-card-title">Category Breakdown</div>
-                      <div className="chart-card-subtitle">AI-extracted</div>
-                    </div>
+              <div className="chart-card">
+                <div className="chart-card-header">
+                  <div>
+                    <div className="chart-card-title">Breakdown Overview</div>
+                    <div className="chart-card-subtitle">AI-extracted</div>
                   </div>
-                  {uploadedData.categoryColExists ? (
-                    <CategoryBarChart data={uploadedData.chartData} />
-                  ) : (
-                    <div style={{
-                      height: 240,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text-muted)',
-                      fontSize: 14,
-                      border: '1px dashed var(--border-subtle)',
-                      borderRadius: 8,
-                      margin: '0 20px 20px 20px',
-                      background: 'rgba(255, 255, 255, 0.01)'
-                    }}>
-                      Category data not available in the dataset.
-                    </div>
-                  )}
                 </div>
+                {uploadedData.categoryColExists ? (
+                  <CategoryBarChart data={uploadedData.chartData} />
+                ) : (
+                  <div style={{
+                    height: 240,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--text-muted)',
+                    fontSize: 14,
+                    border: '1px dashed var(--border-subtle)',
+                    borderRadius: 8,
+                    margin: '0 20px 20px 20px',
+                    background: 'rgba(255, 255, 255, 0.01)'
+                  }}>
+                    Category data not available in the dataset.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -276,14 +314,6 @@ export default function SharedReport() {
                     <span style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{ins}</span>
                   </div>
                 ))}
-              </div>
-              <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
-                <button onClick={handleExportPDF} style={{ flex: 1, padding: '9px', background: 'transparent', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Download size={12} /> Download PDF
-                </button>
-                <button onClick={handleCopyLink} style={{ flex: 1, padding: '9px', background: 'transparent', border: copied ? '1px solid var(--success)' : '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)', fontSize: 12, color: copied ? 'var(--success)' : 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                  <Share2 size={12} /> {copied ? 'Copied!' : 'Copy Link'}
-                </button>
               </div>
             </div>
           )}
@@ -306,6 +336,80 @@ export default function SharedReport() {
             </div>
           )}
 
+          {/* Risks & Weaknesses */}
+          {((uploadedData.risks && uploadedData.risks.length > 0) || (uploadedData.weaknesses && uploadedData.weaknesses.length > 0)) && (
+            <div className="chart-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 24 }}>
+              <div className="chart-card">
+                <div className="chart-card-header" style={{ marginBottom: 12 }}>
+                  <div className="chart-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--danger)', fontSize: 16 }}>
+                    <AlertTriangle size={18} />
+                    Risks & Threats
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {uploadedData.risks?.map((r, i) => (
+                    <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '10px 12px', background: 'rgba(239,68,68,0.02)', border: '1px solid rgba(239,68,68,0.1)', borderRadius: 6 }}>
+                      {r}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="chart-card">
+                <div className="chart-card-header" style={{ marginBottom: 12 }}>
+                  <div className="chart-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#f59e0b', fontSize: 16 }}>
+                    <AlertCircle size={18} />
+                    Weaknesses
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {uploadedData.weaknesses?.map((w, i) => (
+                    <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '10px 12px', background: 'rgba(245,158,11,0.02)', border: '1px solid rgba(245,158,11,0.1)', borderRadius: 6 }}>
+                      {w}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Strengths & Opportunities */}
+          {((uploadedData.strengths && uploadedData.strengths.length > 0) || (uploadedData.opportunities && uploadedData.opportunities.length > 0)) && (
+            <div className="chart-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: 24 }}>
+              <div className="chart-card">
+                <div className="chart-card-header" style={{ marginBottom: 12 }}>
+                  <div className="chart-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--success)', fontSize: 16 }}>
+                    <CheckCircle2 size={18} />
+                    Strengths
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {uploadedData.strengths?.map((s, i) => (
+                    <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '10px 12px', background: 'rgba(16,185,129,0.02)', border: '1px solid rgba(16,185,129,0.1)', borderRadius: 6 }}>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="chart-card">
+                <div className="chart-card-header" style={{ marginBottom: 12 }}>
+                  <div className="chart-card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--blue-400)', fontSize: 16 }}>
+                    <Target size={18} />
+                    Future Opportunities
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {uploadedData.opportunities?.map((o, i) => (
+                    <div key={i} style={{ fontSize: 13, color: 'var(--text-secondary)', padding: '10px 12px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 6 }}>
+                      {o}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* AI Data Anomalies */}
           {uploadedData.anomalies?.length > 0 && (
             <div className="report-section" style={{ marginBottom: 24 }}>
@@ -324,6 +428,19 @@ export default function SharedReport() {
             </div>
           )}
 
+          {/* Conclusion */}
+          {uploadedData.conclusion && (
+            <div className="report-section" style={{ marginBottom: 24 }}>
+              <div className="report-section-title" style={{ fontSize: 16, marginBottom: 14 }}>
+                <FileSpreadsheet size={16} color="var(--blue-400)" />
+                Conclusion
+              </div>
+              <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7, margin: 0 }}>
+                {uploadedData.conclusion}
+              </p>
+            </div>
+          )}
+
           {/* File info */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 32, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--bg-card)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--radius-md)' }}>
@@ -334,7 +451,6 @@ export default function SharedReport() {
               <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns</span>
             </div>
           </div>
-
 
         </div>
       </div>

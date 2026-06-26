@@ -16,12 +16,17 @@ export function DataProvider({ children }) {
     setUploadedDataState(data);
     try {
       if (data) {
-        localStorage.setItem('dsi_uploaded_data', JSON.stringify(data));
+        // Safe serialization: Truncate raw row data to prevent localStorage QuotaExceededError
+        const serialized = {
+          ...data,
+          rows: data.rows ? data.rows.slice(0, 200) : [],
+        };
+        localStorage.setItem('dsi_uploaded_data', JSON.stringify(serialized));
       } else {
         localStorage.removeItem('dsi_uploaded_data');
       }
     } catch (e) {
-      console.error('Failed to save to localStorage:', e);
+      console.warn('Failed to save to localStorage:', e);
     }
   };
 

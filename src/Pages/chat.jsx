@@ -259,14 +259,27 @@ export default function Chat() {
           ))
     );
 
-  const hints = uploadedData ? [
-    `Summarise ${uploadedData.fileName}`,
-    'Show key metrics',
-    'What are the insights?',
-    'Give recommendations',
-    'Any anomalies?',
-    'List all columns',
-  ] : [];
+  const getHints = () => {
+    if (!uploadedData) return [];
+    const type = uploadedData.datasetType;
+    if (type === 'Sales' || type === 'Retail' || type === 'E-Commerce') {
+      return ['Summarize sales', 'Show key metrics', 'Top product', 'Any anomalies?'];
+    }
+    if (type === 'Attendance') {
+      return ['Attendance rate', 'Absent days', 'Late arrivals', 'Show anomalies'];
+    }
+    if (type === 'HR') {
+      return ['Average salary', 'Active employees', 'Attrition rate', 'Show anomalies'];
+    }
+    if (type === 'Finance') {
+      return ['Net profit', 'Total expense', 'Profit margin', 'Show anomalies'];
+    }
+    if (type === 'Inventory' || type === 'Warehouse') {
+      return ['Stock value', 'Out of stock items', 'Low stock items', 'Show anomalies'];
+    }
+    return [`Summarize data`, 'Show key metrics', 'Give recommendations', 'Any anomalies?'];
+  };
+  const hints = getHints();
 
   // ── Quick-action cards shown when no data ────────────────────────────
   const quickActions = [
