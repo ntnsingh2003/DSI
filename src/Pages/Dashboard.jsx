@@ -112,7 +112,11 @@ export default function Dashboard() {
   const validationWarnings = useMemo(() => {
     if (!uploadedData) return [];
     const warnings = [];
-    const { kpis, dataQuality, columnRoles, anomalies, rowCount } = uploadedData;
+    const kpis       = uploadedData.kpis       || [];
+    const dataQuality = uploadedData.dataQuality || { completeness: 100, quality: 100, duplicatesCount: 0 };
+    const columnRoles = uploadedData.columnRoles || {};
+    const anomalies  = uploadedData.anomalies   || [];
+    const rowCount   = uploadedData.rowCount     || 1;
 
     // 1. Metric raw value is 0 check
     const revenueKPI = kpis.find(k => k.label.toLowerCase().includes('revenue') || k.label.toLowerCase().includes('sales'));
@@ -127,13 +131,13 @@ export default function Dashboard() {
     }
 
     // 3. Completeness check
-    if (dataQuality.completeness < 60) {
+    if ((dataQuality.completeness || 100) < 60) {
       warnings.push(`Low Data Completeness: Only ${dataQuality.completeness}% of cells are filled. Results may be statistically biased.`);
     }
 
     // 4. Duplicate checks
     const dupCount = dataQuality.duplicatesCount || 0;
-    if (dupCount > 0 && dupCount / rowCount > 0.15) {
+    if (dupCount > 0 && rowCount > 0 && dupCount / rowCount > 0.15) {
       warnings.push(`High Duplicate Rate: ${dupCount.toLocaleString()} identical/duplicate records detected (${((dupCount / rowCount) * 100).toFixed(1)}% of rows).`);
     }
 
