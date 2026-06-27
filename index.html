@@ -1,12 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background:#05050f;">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dsi-prototype</title>
+    <title>DSI Analytics Platform</title>
+    <style>
+      /* Prevent black flash on page load / direct URL navigation */
+      html, body, #root {
+        background: #05050f;
+        min-height: 100vh;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
   </head>
-  <body>
+  <body style="background:#05050f;">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

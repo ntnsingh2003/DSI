@@ -188,11 +188,11 @@ export default function Chat() {
       setMessages([{
         id: msgIdRef.current++,
         role: 'ai',
-        text: `Hello! I've loaded **"${uploadedData.fileName}"** — ${uploadedData.rowCount.toLocaleString()} rows across ${uploadedData.columns.length} columns.\n\n${uploadedData.summary}\n\nWhat would you like to know?`,
+        text: `Hello! I've loaded **"${uploadedData.fileName}"** — ${(uploadedData.rowCount || 0).toLocaleString()} rows across ${(uploadedData.columns || []).length} columns.\n\n${uploadedData.summary || ''}\n\nWhat would you like to know?`,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         pills: [
-          { label: `${uploadedData.rowCount.toLocaleString()} rows loaded`, state: 'done' },
-          { label: `${uploadedData.columns.length} columns indexed`, state: 'done' },
+          { label: `${(uploadedData.rowCount || 0).toLocaleString()} rows loaded`, state: 'done' },
+          { label: `${(uploadedData.columns || []).length} columns indexed`, state: 'done' },
         ],
         preview: false,
       }]);
@@ -334,7 +334,7 @@ export default function Chat() {
             <h1 className="page-title">Data Chat</h1>
             <p className="page-subtitle">
               <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{uploadedData.fileName}</span>
-              &nbsp;· {uploadedData.rowCount.toLocaleString()} rows · {uploadedData.columns.length} columns
+              &nbsp;· {(uploadedData.rowCount || 0).toLocaleString()} rows · {(uploadedData.columns || []).length} columns
             </p>
           </div>
         </div>
@@ -350,7 +350,7 @@ export default function Chat() {
                 <div className="ai-dot" />
                 <div>
                   <div className="ai-name">DSI Analytics</div>
-                  <div className="ai-tag">{uploadedData.fileName}</div>
+                  <div className="ai-tag">{uploadedData.fileName || 'Dataset'}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -436,7 +436,7 @@ export default function Chat() {
                 <Zap size={16} color="var(--blue-400)" style={{ flexShrink: 0 }} />
                 <input
                   className="chat-input"
-                  placeholder={`Ask about ${uploadedData.fileName}…`}
+                  placeholder={`Ask about ${uploadedData.fileName || 'the data'}…`}
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   // BUG-10 FIX: full guard — empty string AND whitespace protected

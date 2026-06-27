@@ -6,8 +6,16 @@ export function DataProvider({ children }) {
   const [uploadedData, setUploadedDataState] = useState(() => {
     try {
       const saved = localStorage.getItem('dsi_uploaded_data');
-      return saved ? JSON.parse(saved) : null;
+      if (!saved) return null;
+      const parsed = JSON.parse(saved);
+      // Validate that critical fields exist — discard corrupt/old data
+      if (!parsed || !parsed.fileName || parsed.rowCount === undefined || !Array.isArray(parsed.columns)) {
+        localStorage.removeItem('dsi_uploaded_data');
+        return null;
+      }
+      return parsed;
     } catch {
+      localStorage.removeItem('dsi_uploaded_data');
       return null;
     }
   });
