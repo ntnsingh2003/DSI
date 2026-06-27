@@ -4,7 +4,8 @@ import { useData } from '../context/DataContext';
 import {
   TrendingUp, CheckCircle2, Lightbulb,
   Download, Share2, FileText, ExternalLink,
-  BarChart2, Target, FileSpreadsheet, MessageSquare, AlertTriangle, AlertCircle
+  BarChart2, Target, FileSpreadsheet, MessageSquare, AlertTriangle, AlertCircle,
+  Activity
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -250,6 +251,34 @@ export default function Reports() {
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{k.desc}</div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Data Quality Section */}
+        {uploadedData.dataQuality && (
+          <div className="report-section animate-fadeInUp" style={{ animationDelay: '0.18s', marginTop: 20 }}>
+            <div className="report-section-title">
+              <Activity size={18} color="var(--blue-400)" />
+              Dataset Quality & Completeness Audit
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Completeness Rate</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--blue-400)', marginTop: 4 }}>{uploadedData.dataQuality.completeness}%</div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Quality Score</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: uploadedData.dataQuality.quality > 90 ? 'var(--success)' : 'var(--warning)', marginTop: 4 }}>{uploadedData.dataQuality.quality}%</div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Empty Mapped Cells</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: uploadedData.dataQuality.emptyCount > 0 ? 'var(--warning)' : 'var(--text-primary)', marginTop: 4 }}>{uploadedData.dataQuality.emptyCount}</div>
+              </div>
+              <div style={{ padding: '12px 14px', background: 'var(--bg-glass-light)', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Duplicates Detected</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: uploadedData.dataQuality.duplicatesCount > 0 ? 'var(--warning)' : 'var(--text-primary)', marginTop: 4 }}>{uploadedData.dataQuality.duplicatesCount}</div>
+              </div>
             </div>
           </div>
         )}

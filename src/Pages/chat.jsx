@@ -400,7 +400,7 @@ export default function Chat() {
                             </Link>
                           </div>
                           <div className="dashboard-mini-kpis">
-                            {uploadedData.kpis.slice(0, 4).map(k => (
+                            {(uploadedData.kpis || []).slice(0, 4).map(k => (
                               <div key={k.label} className="mini-kpi">
                                 <div className="mini-kpi-label">{k.label}</div>
                                 <div className="mini-kpi-value">{k.value}</div>

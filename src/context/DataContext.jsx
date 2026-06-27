@@ -12,26 +12,30 @@ export function DataProvider({ children }) {
     }
   });
 
+  // Tracks live pipeline stage progress for dev debug visibility
+  const [pipelineStages, setPipelineStages] = useState([]);
+
   const setUploadedData = (data) => {
     setUploadedDataState(data);
     try {
       if (data) {
-        // Safe serialization: Truncate raw row data to prevent localStorage QuotaExceededError
+        // Truncate rows to keep localStorage payload within quota
         const serialized = {
           ...data,
-          rows: data.rows ? data.rows.slice(0, 200) : [],
+          rows: Array.isArray(data.rows) ? data.rows.slice(0, 200) : [],
         };
         localStorage.setItem('dsi_uploaded_data', JSON.stringify(serialized));
       } else {
         localStorage.removeItem('dsi_uploaded_data');
+        setPipelineStages([]);
       }
     } catch (e) {
-      console.warn('Failed to save to localStorage:', e);
+      console.warn('[DataContext] localStorage serialization failed:', e);
     }
   };
 
   return (
-    <DataContext.Provider value={{ uploadedData, setUploadedData }}>
+    <DataContext.Provider value={{ uploadedData, setUploadedData, pipelineStages, setPipelineStages }}>
       {children}
     </DataContext.Provider>
   );
